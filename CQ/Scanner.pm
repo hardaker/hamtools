@@ -50,26 +50,35 @@ sub popup_channel_menu {
 sub load_buttons {
    my $channelid = 2000;
    foreach my $channel (@main::toscan) {
+
+       my $bar = new Wx::BoxSizer(wxHORIZONTAL);
+
        $main::config{$channel}{'button'} =
 	 Wx::Button->new($subpanel, $channelid, $channel);
        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
        $main::config{$channel}{'button'}->SetFont($font);
-       $grid->Add($main::config{$channel}{'button'});
+       $bar->Add($main::config{$channel}{'button'},0,wxEXPAND | wxALL,0);
        $main::config{$channel}{'button'}{'channel'} = $channel;
        EVT_BUTTON($main::config{$channel}{'button'}, $channelid,
 		  \&channel_button);
+#       $main::config{$channel}{'button'}->SetWindowStyle(wxBU_EXACTFIT);
        $channelid++;
 
        $main::config{$channel}{'popbutton'} =
 	 Wx::Button->new($subpanel, $channelid, "^");
        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
        $main::config{$channel}{'popbutton'}->SetFont($font);
-       $grid->Add($main::config{$channel}{'popbutton'});
+       $bar->Add($main::config{$channel}{'popbutton'},0,0,0);
        $main::config{$channel}{'popbutton'}{'channel'} = $channel;
        EVT_BUTTON($main::config{$channel}{'popbutton'}, $channelid,
 		  \&popup_channel_menu);
        $channelid++;
+       $main::config{$channel}{'popbutton'}->SetWindowStyle(wxBU_EXACTFIT);
+
+       $grid->Add($bar);
+       $bar->SetSizeHints($subpanel);
    }
+   $grid->SetSizeHints($mainpanel);
 }
 
 sub channel_button {
@@ -87,7 +96,6 @@ sub channel_button {
 	set_channel_button($channelb->{'channel'}, wxNORMAL, wxBOLD);
 	$channelb->SetLabel("(L) $channelb->{'channel'}");
 	$main::locked = 1;
-	popup_channel_menu($channelb->{'channel'});
     }
 
 }
@@ -137,6 +145,7 @@ sub new {
 
    $subpanel = Wx::Panel->new($this, -1);
    $grid = new Wx::FlexGridSizer(1,int(($#main::toscan + 3)/2));
+#   $grid = new Wx::BoxSizer(wxHORIZONTAL);
 
    #
    # MENU setup
