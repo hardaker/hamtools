@@ -54,6 +54,7 @@
       <commands>
 	<command>scp cq.html sig2kml.html ezrnec.html signalrecord.html signalcount.html dh.hardakers.net:hamtools.org/docs/</command>
 	<command>scp www/*.html www/*.css dh.hardakers.net:hamtools.org/</command>
+	<command>scp www/releases.cgi dh.hardakers.net:hamtools.org/releases/</command>
       </commands>
     </step>
 
@@ -87,7 +88,8 @@
 
 	<step type="command" title="svk export the results">
 	  <commands>
-	    <command>svk export //local/Ham/hamtools/tags/hamtools-{VERSION} hamtools-{VERSION}</command>
+	    <command>svk co --export //local/Ham/hamtools/tags/hamtools-{VERSION} /tmp/hamtools-{VERSION}</command>
+	    <command>mv /tmp/hamtools-{VERSION} .</command>
 	  </commands>
 	</step>
 
@@ -101,11 +103,11 @@
 	<step type="command" title="create the executable binary">
 	  <commands>
 	    <command>sh Makefile.pp</command>
-	    <command>mv cq-linux cq-{VERSION}.linux</command>
-	    <command>mv signalrecord-linux signalrecord-{VERSION}.linux</command>
-	    <command>mv sig2kml-linux sig2kml-{VERSION}.linux</command>
-	    <command>mv signalcount-linux signalcount-{VERSION}.linux</command>
-	    <command>mv ezrnec-linux ezrnec-{VERSION}.linux</command>
+	    <command>mv cq.linux cq-{VERSION}.linux</command>
+	    <command>mv signalrecord.linux signalrecord-{VERSION}.linux</command>
+	    <command>mv sig2kml.linux sig2kml-{VERSION}.linux</command>
+	    <command>mv signalcount.linux signalcount-{VERSION}.linux</command>
+	    <command>mv ezrnec.linux ezrnec-{VERSION}.linux</command>
 	  </commands>
 	</step>
 
