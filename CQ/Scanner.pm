@@ -198,7 +198,8 @@ sub load_buttons {
        my $bar = new Wx::BoxSizer(wxHORIZONTAL);
 
        $main::config{$channel}{'button'} =
-	 Wx::Button->new($subpanel, $channelid, $channel);
+	 Wx::Button->new($subpanel, $channelid,
+			 $main::config{$channel}{'label'} || $channel);
        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
        $main::config{$channel}{'button'}->SetFont($font);
        $bar->Add($main::config{$channel}{'button'},0,wxEXPAND | wxALL,0);
@@ -381,6 +382,7 @@ sub new {
 
    my $maxcountid = 4300;
    my ($mmaxcount) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   my ($sleeptime) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    foreach my $maxcount (1..15, 10000) {
 
        my $item = $mmaxcount->AppendCheckItem($maxcountid, $maxcount);
@@ -390,8 +392,17 @@ sub new {
        EVT_MENU($this, $maxcountid, sub { OnMaxcount($maxcount) });
 
        $maxcountid++;
+
+       $item = $sleeptime->AppendCheckItem($maxcountid, $maxcount);
+       if ($main::opts{'sleep'} eq $maxcount) {
+	   $item->Check(1);
+       }
+       EVT_MENU($this, $maxcountid, sub { $main::opts{'sleep'} = $maxcount } );
+
+       $maxcountid++;
    }
    $scannermenu->AppendSubMenu($mmaxcount, "&Scan Count Maximum");
+   $scannermenu->AppendSubMenu($sleeptime, "&Scan Sleep Value");
 
    load_buttons();
 

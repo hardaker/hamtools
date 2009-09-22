@@ -23,6 +23,7 @@ our %defopts = (
 		hangtime => 3,
 		keephistory => 600,
 		scanmax => 10000,
+		sleep => 1,
 	       );
 
 #
@@ -89,6 +90,7 @@ LocalGetOptions(\%opts,
 	   ["u|usleep=s",          "time between sleeps"],
 	   ["hangtime=s",          "time in seconds to hang on an empty channel after traffic stops"],
 	   ["C|scancount=s",       "Number of stations to scan by default at once before returning to the locked one."],
+	   ["sleep=s",             "Seconds to sleep on an active channel before rescanning"],
 
 	   ["GUI:separator",   "Other Commands:"],
 	   ["set=s",           "Set a channel directly by name and quit"],
@@ -605,7 +607,7 @@ sub next_scan {
 
 	$scancount = 0;
 	set_channel($currentchannel, 0, $label) if ($label);
-	return 1; # XXX: make configurable
+	return $opts{'sleep'}; # XXX: make configurable
     } else {
 	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
     }
@@ -660,6 +662,7 @@ sub read_config {
 	    push @{$groups{uc($groupname)}}, split(/,\s*/, uc($groups));
 	} elsif (/^\s*(\S+)\s*:\s*([^,]*),*(.*)/) {
 	    my $parts;
+	    my $label = $1;
 	    my $name = uc($1);
 	    if (exists($config{$name})) {
 		$parts = $config{$name};
@@ -668,6 +671,7 @@ sub read_config {
 		$config{$name} = $parts;
 	    }
 	    $parts->{'frequency'} = $2 if ($2);
+	    $parts->{'label'} = $label;
 	    foreach my $data (split(/,\s*/,$3)) {
 		my ($left, $right) = split(/\s*=\s*/, $data);
 		$parts->{$left} = $right;
