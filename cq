@@ -583,11 +583,25 @@ Ranges are also allowed:
 
 =item checkevery
 
+How often (in seconds) to check the channel for traffic.
+
 =item priority
+
+Higher numbered priorities will be considered more important; lower
+number priorities will not be searched at all until the higher number
+priorities are completely silent.
+
+(useful tip: set your local faviorite radio station (e.g. NPR) to
+priority 1 and everything else higher than that; it'll ensure you're
+always listening to at least something while it's scanning around your
+other defined channels).
 
 =item interval
 
 =item tone
+
+The CTCS tone that the rig should be set to when the channel is locked
+onto (e.g. "123.0").
 
 =item dcs
 
@@ -596,6 +610,10 @@ Ranges are also allowed:
 =item enabled
 
 Generally this isn't needed, but if set to I<false> it won't be used.
+
+=item hangtime
+
+The amount of time the channel should stay locked to after it goes silent.
 
 =back
 
