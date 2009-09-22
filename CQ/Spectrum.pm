@@ -1,4 +1,4 @@
-package CQSpectrum;
+package CQ::Spectrum;
 use vars qw(@ISA);
 use strict;
 #
