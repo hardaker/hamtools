@@ -73,8 +73,8 @@ $rig->open();
 my $freq = $rig->get_freq();
 my %data;
 
-my %config;
-my %groups;
+our %config;
+our %groups;
 # scanning vars
 our ($currentchannel, $currentstart, $currentlivetime, @toscan);
 our $locked = 0;
@@ -420,7 +420,7 @@ sub next_scan {
     if ($currentchannel) {
 	return 1; # XXX: make configurable
     } else {
-	return .0001; # XXX: make configurable (1ms minimum for Wx)
+	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
     }
 }
 
