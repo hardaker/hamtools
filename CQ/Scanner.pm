@@ -154,6 +154,15 @@ sub popup_channel_menu {
     }
     EVT_MENU($menu, $menuid, sub { OnEnable($channel) });
 
+    $item = $menu->Append(++$menuid, "Disable all channels above this one");
+    EVT_MENU($menu, $menuid, sub { OnDisableAbove($channel) });
+
+    $item = $menu->Append(++$menuid,
+			  "Enable this and all channels above this one");
+    EVT_MENU($menu, $menuid, sub { OnEnableAbove($channel) });
+
+    $menu->AppendSeparator();
+
     $item = $menu->Append(++$menuid, "Channel Details");
     EVT_MENU($menu, $menuid, sub { OnInfo($channel) });
 
@@ -174,6 +183,8 @@ sub popup_channel_menu {
     EVT_MENU($menu, $menuid, sub { $main::config{$channel}{'frequency'} = 
 				     main::get_frequency() });
 
+    $menu->AppendSeparator();
+
     my($lockmenu) = Wx::Menu->new(undef, wxMENU_TEAROFF);
     foreach my $locktime (qw(.5 1 2 3 4 5 10 20 30 60)) {
 	$lockmenu->Append(++$menuid, "$locktime", "");
@@ -182,13 +193,6 @@ sub popup_channel_menu {
 		 });
     }
     $menu->AppendSubMenu($lockmenu, "&Lock for N minutes ...");
-
-    $item = $menu->Append(++$menuid, "Disable all channels above this one");
-    EVT_MENU($menu, $menuid, sub { OnDisableAbove($channel) });
-
-    $item = $menu->Append(++$menuid,
-			  "Enable this and all channels above this one");
-    EVT_MENU($menu, $menuid, sub { OnEnableAbove($channel) });
 
 #     $menu->Append(2101, "Test Item 2");
 #     EVT_MENU($menu, 2101, sub { got_something("2", $channelb->{'channel'})});
@@ -318,7 +322,7 @@ sub OnGroup {
     $grid->Clear(1);
     load_buttons();
     $subpanel->SetSizerAndFit($grid);
-    $main::currentchannel = '';
+    main::set_current_channel();
 }
 
 sub set_channel_button {
@@ -334,10 +338,21 @@ sub OnMaxcount {
     $main::maxscancount = $maxcount;
 }
 
+sub OnChangeChannel {
+    my $channel = shift;
+    if ($channel) {
+	$mainpanel->SetTitle("CQ: " . $channel);
+    } else {
+	$mainpanel->SetTitle("CQ: Scanning");
+    }
+}
+
 sub new {
    my $class = shift;
    my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
    $mainpanel = $this;
+
+   $main::set_channel_callback = \&OnChangeChannel;
 
    #
    #   replace the filename with something appropriate.

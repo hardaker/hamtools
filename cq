@@ -363,6 +363,16 @@ sub get_frequency {
     return $rig->get_freq() / 1000000;
 }
 
+our $set_channel_callback;
+
+sub set_current_channel {
+    my ($newchannel) = @_;
+    $currentchannel = $newchannel;
+    if (ref($set_channel_callback) eq 'CODE') {
+	$set_channel_callback->($newchannel);
+    }
+}
+
 sub set_channel {
     my ($channel, $justbasics, $label) = @_;
     die "no channel to switch to" if (!$channel);
@@ -378,7 +388,7 @@ sub set_channel {
     $rig->set_freq($freq * 1000000);
     $rig->set_mode($modes{$config{$channel}{'mode'}},0)
       if ($config{$channel}{'mode'});
-    $currentchannel = $channel;
+    set_current_channel($channel);
 
     # mark the new channel as beginning
     start_history($channel, $currentstart, $label);
@@ -493,7 +503,7 @@ sub next_scan {
 
 	    close_history($currentchannel, $time);
 
-	    $currentchannel = '';
+	    set_current_channel();
 	    $currentlivetime = 0;
 	    next;
 	}
@@ -594,7 +604,7 @@ sub next_scan {
 	    # remember this one as the new "best"
 	    close_history($currentchannel, $time);
 	    push @pastchannels, $currentchannel if ($currentchannel);
-	    $currentchannel = $next;
+	    set_current_channel($next);
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");
 	    set_history_label($currentchannel, 'found');
