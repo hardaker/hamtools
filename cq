@@ -404,20 +404,23 @@ sub set_channel {
 }
 
 sub start_history {
-    my ($channel, $time, $label) = @_;
+    my ($channel, $time, $historylabel) = @_;
     $time = time() if (!$time);
-    $label = "" if (!$label);
+    $historylabel = "" if (!$historylabel);
     while ($#{$config{$channel}{'history'}} > -1 &&
 	   $time - $config{$channel}{'history'}[0][1] > $opts{'keephistory'}) {
 	shift @{$config{$channel}{'history'}};
     }
-    push @{$config{$channel}{'history'}}, [$label, $time];
+    push @{$config{$channel}{'history'}}, [$historylabel, $time];
+
+    call_hooks('start_history', $channel, $historylabel, $time);
 }
 
 sub set_history_label {
-    my ($channel, $label) = @_;
+    my ($channel, $historylabel) = @_;
     $config{$channel}{'history'}[$#{$config{$channel}{'history'}}][0]
-      = $label;
+      = $historylabel;
+    call_hooks('set_history_label', $channel, $historylabel);
 }
 
 sub get_history_label {
@@ -427,7 +430,7 @@ sub get_history_label {
 }
 
 sub close_history {
-    my ($channel, $time, $label) = shift;
+    my ($channel, $time, $historylabel) = shift;
     return if (!$channel);
     $time = time() if (!$time);
 
@@ -438,11 +441,12 @@ sub close_history {
 	   [$#{$config{$channel}{'history'}}]} == 1) {
 	$config{$channel}{'history'}[$#{$config{$channel}{'history'}}][2]
 	  = $time;
-	if ($label) {
+	if ($historylabel) {
 	    $config{$channel}{'history'}[$#{$config{$channel}{'history'}}][0]
-	      = $label;
+	      = $historylabel;
 	}
     }
+    call_hooks('close_history', $channel, $historylabel);
 }
 
 sub close_channel {
@@ -769,6 +773,33 @@ sub read_config {
     }
 }
 
+######################################################################
+# Hook Support
+#
+my %hooks;
+
+sub register_hook {
+    my ($hookname, $code, @arguments) = @_;
+  Verbose("registering neew hook for $hookname\n");
+    push @{$hooks{$hookname}},
+      { code => $code,
+	arguments => \@arguments
+      };
+}
+
+sub call_hooks {
+  my ($hookname, @otherarguments) = @_;
+  return if (!exists($hooks{$hookname}));
+  Verbose("calling all hooks for $hookname\n");
+  foreach my $hook (@{$hooks{$hookname}}) {
+      next if (ref(($hook->{'code'}) ne CODE));
+      $hook->{'code'}->(@{$hook->{'arguments'}}, @otherarguments);
+  }
+}
+
+######################################################################
+# Debugging/Output
+#
 sub Error {
     print STDERR @_,"\n";
 }
