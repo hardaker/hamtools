@@ -846,7 +846,7 @@ sub LocalOptionsMap {
     return @opts;
 }
 
-=cut
+=pod
 
 =head1 NAME
 
@@ -1058,7 +1058,7 @@ If you have some perl modules in a non-standard directory:
   #
   # Default command line flags
   #
-  option	    S 38400
+  option      S 38400
   option      u .8
 
   #
@@ -1116,14 +1116,17 @@ If you have some perl modules in a non-standard directory:
 With the above, you can scan various groups of channels easily:
 
   Scans just the simplex and repeaters
+
   # cq -scan daily
 
   Adds in a radio station to fall back to so it's always playing something:
+
   # cq -scan alwayson
 
   Maybe we want to check the FRS channels before falling back to the
   radio station (remember the FRS had a lower priority so it'll be
   picked in preferenc to the KXJZ station).
+
   # cq -scan alwayson,FRS
 
 
