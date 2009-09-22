@@ -96,10 +96,7 @@ sub update_pixmap {
 }
 
 sub closit {
-    print "here $_[0]\n";
-
     $_[0]->Destroy();
     $_[0]->{'timer'}->Stop();
     return 1;
-    ## XXX: kill timer
 }
