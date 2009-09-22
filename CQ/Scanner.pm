@@ -309,6 +309,9 @@ sub new {
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
    EVT_MENU($this, $MENU_USAGE, \&OnScanPlot);
 
+   my $scannermenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   $mbar->Append($scannermenu, "&Scanner");
+
    my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($configmenu, "&Config");
 
@@ -323,12 +326,18 @@ sub new {
 
    my $groupid = 4500;
    my($mgroup) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   my($maddgroup) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    foreach my $group (sort keys(%main::groups)) {
        $mgroup->Append($groupid, "$group", "");
        EVT_MENU($this, $groupid, sub {OnGroup($group);});
        $groupid++;
+
+       $maddgroup->Append($groupid, "$group", "");
+       EVT_MENU($this, $groupid, sub {OnGroup($group, 1);});
+       $groupid++;
    }
-   $mbar->Append($mgroup, "&Group");
+   $scannermenu->AppendSubMenu($mgroup, "&Switch to Group");
+   $scannermenu->AppendSubMenu($mgroup, "&Add in Group");
 
    my $gridid = 4200;
    my ($mgrid) = Wx::Menu->new(undef, wxMENU_TEAROFF);
