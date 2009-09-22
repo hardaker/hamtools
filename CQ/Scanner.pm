@@ -276,6 +276,11 @@ sub set_channel_button {
     $main::config{$channel}{'button'}->SetFont($font);
 }
 
+sub OnMaxcount {
+    my ($maxcount) = @_;
+    $main::maxscancount = $maxcount;
+}
+
 sub new {
    my $class = shift;
    my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
@@ -324,13 +329,26 @@ sub new {
 
    my $gridid = 4200;
    my ($mgrid) = Wx::Menu->new(undef, wxMENU_TEAROFF);
-   my $rowcount;
    foreach my $rowcount (1..15) {
        $mgrid->Append($gridid, "$rowcount", "");
        EVT_MENU($this, $gridid, sub {OnGrid("$rowcount");});
        $gridid++;
    }
    $mbar->Append($mgrid, "&Rows");
+
+   my $maxcountid = 4300;
+   my ($mmaxcount) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   foreach my $maxcount (1..15, 10000) {
+
+       my $item = $mmaxcount->AppendCheckItem($maxcountid, $maxcount);
+       if ($main::maxscancount eq $maxcount) {
+	   $item->Check(1);
+       }
+       EVT_MENU($this, $maxcountid, sub { OnMaxcount($maxcount) });
+
+       $maxcountid++;
+   }
+   $mbar->Append($mmaxcount, "&Max Scan");
 
    load_buttons();
 

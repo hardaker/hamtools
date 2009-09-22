@@ -22,6 +22,7 @@ our %defopts = (
 		time => 10,
 		hangtime => 3,
 		keephistory => 600,
+		scanmax => 10000,
 	       );
 
 #
@@ -131,6 +132,7 @@ $rig->set_conf("serial_speed",$opts{'S'});
 $rig->open();
 my $freq = $rig->get_freq();
 my %data;
+our $maxscancount = $opts{'scanmax'};
 
 if ($opts{'test'}) {
     my $startfreq = 14.250;
@@ -443,6 +445,8 @@ sub next_scan {
 	$scancount = $opts{'C'};
 	$scancount = $config{$currentchannel}{'scancount'}
 	  if ($currentchannel && $config{$currentchannel}{'scancount'} > 0);
+	# (allow for a master-set maximum)
+	$scancount = $maxscancount if ($scancount > $maxscancount);
     }
     $scancount--;
 
