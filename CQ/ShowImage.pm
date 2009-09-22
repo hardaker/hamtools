@@ -81,7 +81,10 @@ sub new {
        $this->EVT_TIMER($timer, \&load_imgfile);
        $this->{'updatefn'} = $updatefn;
        $this->{'imgfile'} = $imgfile;
+       $this->{'timer'} = $timer;
    }
+
+   EVT_CLOSE($this, \&closit);
 
    $this;  # return the frame object to the calling application.
 }
@@ -90,4 +93,13 @@ sub new {
 sub update_pixmap {
     my $self = shift;
     $self->load_imgfile();
+}
+
+sub closit {
+    print "here $_[0]\n";
+
+    $_[0]->Destroy();
+    $_[0]->{'timer'}->Stop();
+    return 1;
+    ## XXX: kill timer
 }
