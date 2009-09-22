@@ -13,10 +13,6 @@ use lib ('/home/hardaker/docs/ham/hamtools');
 use CQ::App;
 
 my %opts = (
-	    P => '/dev/ttyS0',
-	    M => '122',
-	    S => '38400',
-
 	    s => '14.150',
 	    e => '14.350',
 	    i => '.0001',
@@ -29,6 +25,18 @@ my %opts = (
 	    hangtime => 3,
 	   );
 
+#
+# global variables we'll need (ewwwwww)
+#
+our %config;
+our %groups;
+# scanning vars
+our ($currentchannel, $currentstart, $currentlivetime, @toscan);
+our $locked = 0;
+
+#
+# read the command line options (and provide help output)
+#
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
 GetOptions(\%opts,
 	   ["GUI:separator",     "Scanning Options:"],
@@ -66,6 +74,16 @@ GetOptions(\%opts,
 
 $| = 1;
 
+#
+# read the config file
+#
+read_config($opts{'c'});
+
+Die("No rig model set; -M, -P and -S are mandatory") if (!exists($opts{'M'}));
+Die("No rig serial port set; -M, -P and -S are mandatory") if (!exists($opts{'P'}));
+Die("No rig serial rate; -M, -P and -S are mandatory") if (!exists($opts{'S'}));
+
+# initialize the rig connection
 Hamlib::rig_set_debug(1);
 my $rig = new Hamlib::Rig($opts{'M'});
 $rig->set_conf("rig_pathname", $opts{'P'});
@@ -73,17 +91,6 @@ $rig->set_conf("serial_speed",$opts{'S'});
 $rig->open();
 my $freq = $rig->get_freq();
 my %data;
-
-our %config;
-our %groups;
-# scanning vars
-our ($currentchannel, $currentstart, $currentlivetime, @toscan);
-our $locked = 0;
-
-#$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
-#$rig->set_freq($opts{'s'} * 1000000);
-
-read_config($opts{'c'});
 
 if ($opts{'test'}) {
     my $startfreq = 14.250;
@@ -445,11 +452,13 @@ sub read_config {
 	    }
 	} elsif (/^\s*include\s+(.*)/) {
 	    read_config($1, \%defaults);
+	} elsif (/^\s*option\s+(\S*)\s+(.*)/) {
+	    $opts{$1} = $2 if (!exists($opts{$1}));
 	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
 	    my $groupname = $1;
 	    my $groups = $2;
 	    push @{$groups{uc($groupname)}}, split(/,\s*/, uc($groups));
-	} elsif (/^\s*(\w+)\s*:\s*([^,]*),*(.*)/) {
+	} elsif (/^\s*(\S+)\s*:\s*([^,]*),*(.*)/) {
 	    my $parts;
 	    my $name = uc($1);
 	    if (exists($config{$name})) {
@@ -477,6 +486,11 @@ sub read_config {
 
 sub Error {
     print STDERR @_,"\n";
+}
+
+sub Die {
+    Error(@_);
+    exit 1;
 }
 
 sub Verbose {
@@ -564,6 +578,16 @@ Generally this isn't needed, but if set to I<false> it won't be used.
 The amount of time the channel should stay locked to after it goes silent.
 
 =back
+
+=head2 OPTION LINES
+
+You can also add command line options to the .cqrc file.  They must be
+the short-anme options (cq -h output) if they exist.  As an example:
+
+  option M 122
+
+Sets the default '-m' flag option to 122 (ie, set thes hamlib rig
+model to 122 which is a Yaesu 857).
 
 =head1 DESCRIPTION
 
