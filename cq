@@ -291,7 +291,9 @@ if ($opts{'w'}) {
 }
 
 sub create_freq_graph {
-    use GD;
+    Die("You need to install the GD module before you can create graphs")
+      if (! eval { require GD; });
+    import GD;
     my $height = 100;
     my $im = new GD::Image($#keys,$height);
     my $fill = $im->colorAllocate(0,0,255);
