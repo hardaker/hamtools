@@ -1,4 +1,4 @@
-package MyFrame;
+package CQSpectrum;
 use vars qw(@ISA);
 use strict;
 #

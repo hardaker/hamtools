@@ -1,4 +1,4 @@
-package MyScanner;
+package CQScanner;
 
 use Wx qw(:everything :font :textctrl);
 use Wx::Event qw(EVT_MENU);
