@@ -9,7 +9,7 @@ my %opts =
    'm' => -53,  # generally -54 is the minimum reported on my 857D
    'M' => 50,   # 50 = max signal reported on my 857D
    'opaque' => int(255*50/100),
-   'hue' => .8, # hue range
+   'hue' => .25, # hue range
   );
 
 #
@@ -84,12 +84,24 @@ print KML "<?xml version=\"1.0\" encoding=\"utf-8\"?>
     </Placemark>
 ";
 
+my $lastlevel;
+
 top:
 foreach my $signal (@{$sig->{'signal'}}) {
     Debug("starting report for freq=$signal->{'frequency'}\n");
     for (my $i = 0; $i < $#{$signal->{'record'}}; $i++) {
 
-	next if ($i > 0 && $signal->{'record'}[$i]{'level'} == $signal->{'record'}[$i-1]{'level'});
+	my $currentlevel = $signal->{'record'}[$i]{'level'};
+
+	# the current level essentially is for the *next* segment (ie,
+	# until it changes again).  Thus we need to plot it from the
+	# current lat/lon until the next.  Thus when we're plotting now,
+	# where we know the previous lat/lon and the current lat/lon
+	# that's actually for the *previous* level
+
+	# skip two identical signals in a row (ie, -e flag)
+	next if ($i > 0 &&
+		 $currentlevel == $signal->{'record'}[$i-1]{'level'});
 
 	# find the gpx track point for the current
 	while ($gpxindex < $numpts &&
@@ -98,6 +110,7 @@ foreach my $signal (@{$sig->{'signal'}}) {
 	    $trkpts->[$gpxindex+1]{'unix'} =
 	      str2time($trkpts->[$gpxindex+1]{'time'}[0]);
 	}
+
 	if ($gpxindex >= $numpts) {
 	    print STDERR "ERROR: GPS track not long enough to cover all of the signal data\n";
 	    last top;
@@ -106,9 +119,13 @@ foreach my $signal (@{$sig->{'signal'}}) {
 	$lat = ($trkpts->[$gpxindex]{'lat'} + $trkpts->[$gpxindex+1]{'lat'})/2;
 	$lon = ($trkpts->[$gpxindex]{'lon'} + $trkpts->[$gpxindex+1]{'lon'})/2;
 
-	if ($signal->{'record'}[$i]{'level'} < $opts{'m'}) {
+	if ($lastlevel < $opts{'m'}) {
+	    # don't print the current triangle because it's below the
+	    # threshold ( which corresponds to the *last* level as discussed
+	    # above)
             $lastlat = $lat;
             $lastlon = $lon;
+	    $lastlevel = $currentlevel;
             next;
         }
 
@@ -117,11 +134,11 @@ foreach my $signal (@{$sig->{'signal'}}) {
 	    # they're different.
 	    # XXX: different *enough* would be nice
 
-	    my $col = get_color($signal->{'record'}[$i]{'level'});
-	    print $signal->{'record'}[$i]{'level'} . " -> " .
+	    my $col = get_color($lastlevel);
+	    print $currentlevel . " -> " .
 	      $col . "\n";
 
-	    my $alt = int(100*($signal->{'record'}[$i]{'level'}-$opts{'m'})/
+	    my $alt = int(100*($currentlevel-$opts{'m'})/
 			  ($opts{'M'}-$opts{'m'}));
 	    print KML "    <Placemark>
       <name>Tri$i</name>
@@ -160,6 +177,7 @@ foreach my $signal (@{$sig->{'signal'}}) {
 
 	$lastlat = $lat;
 	$lastlon = $lon;
+	$lastlevel = $currentlevel;
     }
 }
 
