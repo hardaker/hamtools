@@ -167,7 +167,7 @@ if ($opts{'load'}) {
 	# now that we've found one to check...
 	if ($next) {
 	    # what to check next?
-	    Verbose("  checking $next $config{$next}{'priority'} => $config{$next}{'frequency'}\n");
+	    Verbose("  checking $next (pri=$config{$next}{'priority'} at $config{$next}{'frequency'})\n");
 
 	    # change the frequency and potentially the mode
 	    $rig->set_freq($config{$next}{'frequency'} * 1000000);
@@ -179,8 +179,6 @@ if ($opts{'load'}) {
 	    # test for the new level
 	    my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
 
-	    Verbose("  -> $newchan ($opts{l})\n  $config{$next}{'priority'} >= $config{$currentchannel}{'priority'}\n");
-
 	    # XXX: minimum timeout for falling back somehow?
 
 	    # if the new level is better, we'll use it (because the
@@ -189,13 +187,13 @@ if ($opts{'load'}) {
 		# use the current frequency of the new channel
 		# remember this one as the new "best"
 		$currentchannel = $next;
+		Verbose("current: $currentchannel\n");
 	    } else {
 		# fall back to the previous lower priority channel
 
 		$rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
 	    }
 
-	    Verbose("current: $currentchannel\n");
 
 	    # remember the last time we checked this new channel
 	    $config{$next}{'lastchecked'} = time();
@@ -438,5 +436,5 @@ sub Error {
 }
 
 sub Verbose {
-    print STDERR @_,"\n" if ($opts{'v'});
+    print STDERR @_ if ($opts{'v'});
 }
