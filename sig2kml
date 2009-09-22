@@ -3,14 +3,22 @@
 use XML::Simple;
 use Data::Dumper;
 use Date::Parse;
+use GeoDB;
+use GeoDB::Export::Map;
+use strict;
 
-my %opts = 
+
+my %opts =
   (
    'm' => -53,  # generally -54 is the minimum reported on my 857D
    'M' => 50,   # 50 = max signal reported on my 857D
    'opaque' => int(255*50/100),
    'hue' => .25, # hue range
   );
+
+if (-f "$ENV{'HOME'}/.sig2kmlrc") {
+    eval `cat $ENV{'HOME'}/.sig2kmlrc`;
+}
 
 #
 # read the command line options (and provide help output)
@@ -23,7 +31,9 @@ LocalGetOptions(\%opts,
 		["L|lon=s",         "Recevier longitude"],
 
 		["GUI:separator",   "Output:"],
+		["p|prefix=s",      "Use a common prefix for all the below"],
 		["o|output-file=s", "Output KML file"],
+		["map=s",           "Output map (png) file"],
 		["m|min-level=s",   "Minimum signal level to report"],
 		["M|max-level=s",   "Maximum signal level"],
 		["hue=s",           "Hue Range (0..this)"],
@@ -31,6 +41,13 @@ LocalGetOptions(\%opts,
 		["GUI:separator",   "Debugging:"],
 		["d|debug",         "Debugging output"],
 	       );
+
+if ($opts{'p'}) {
+    $opts{'o'} = $opts{'p'} . ".kml" if (!$opts{'o'});
+    $opts{'map'} = $opts{'p'} . ".png" if (!$opts{'map'});
+    $opts{'g'} = $opts{'p'} . ".gpx" if (!$opts{'g'});
+    $opts{'s'} = $opts{'p'} . ".xml" if (!$opts{'s'});
+}
 
 die ("-g, -s and -o are mandatory")
   if (!$opts{'g'} || !$opts{'s'} || !$opts{'o'});
@@ -64,6 +81,7 @@ $trkpts->[$gpxindex+1]{'unix'} = str2time($trkpts->[$gpxindex+1]{'time'}[0]);
 
 
 # print the KML header
+if ($opts{'o'}) {
 print KML "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 <kml xmlns=\"http://earth.google.com/kml/2.2\">
 <Document>
@@ -83,8 +101,12 @@ print KML "<?xml version=\"1.0\" encoding=\"utf-8\"?>
       </Point>
     </Placemark>
 ";
+}
 
 my $lastlevel;
+
+my @mapdata;
+my ($minlat, $maxlat, $minlon, $maxlon) = (181,-181,181,-181);
 
 top:
 foreach my $signal (@{$sig->{'signal'}}) {
@@ -135,12 +157,13 @@ foreach my $signal (@{$sig->{'signal'}}) {
 	    # XXX: different *enough* would be nice
 
 	    my $col = get_color($lastlevel);
-	    print $lastlevel . " -> " .
-	      $col . "\n";
+# 	    print $lastlevel . " -> " .
+# 	      $col . "\n";
 
 	    my $alt = int(100*($lastlevel-$opts{'m'})/
 			  ($opts{'M'}-$opts{'m'}));
-	    print KML "    <Placemark>
+	    if ($opts{'o'}) {
+		print KML "    <Placemark>
       <name>Tri$i</name>
       <Style>
         <PolyStyle>
@@ -165,6 +188,20 @@ foreach my $signal (@{$sig->{'signal'}}) {
       </Polygon>
     </Placemark>
 ";
+	    }
+	    if ($opts{'map'}) {
+		push @mapdata,[$lastlevel, [$lat, $lon], [$lastlat, $lastlon]];
+
+		# XXX: some already done before if data > 1
+		$maxlat = $lat if ($lat > $maxlat);
+		$maxlon = $lon if ($lon > $maxlon);
+		$minlat = $lat if ($lat < $minlat);
+		$minlon = $lon if ($lon < $minlon);
+		$maxlat = $lastlat if ($lastlat > $maxlat);
+		$maxlon = $lastlon if ($lastlon > $maxlon);
+		$minlat = $lastlat if ($lastlat < $minlat);
+		$minlon = $lastlon if ($lastlon < $minlon);
+	    }
 	}
 
 	# ok, we can now do a point between the last position and current
@@ -181,16 +218,58 @@ foreach my $signal (@{$sig->{'signal'}}) {
     }
 }
 
-print KML "
+if ($opts{'o'}) {
+    print KML "
   </Folder>
 </Document>
 </kml>
 ";
+}
 
+if ($opts{'map'}) {
+    my $mapdb = new GeoDB::Export::Map();
+    my ($im, @mapbounds) =
+      $mapdb->make_map($minlat, $minlon, $maxlat, $maxlon, 3);
+    my ($imgx, $imgy) = $im->getBounds();
+    my $red = $im->colorAllocate(255,0,0);
+    my $im2 = new GD::Image($imgx, $imgy, 1);
+    my $white = $im2->colorAllocate(255,255,255);
+    $im2->filledRectangle(0,0,$imgx,$imgy,$white);
+
+    my %colors;
+    foreach my $sig ($opts{'m'} .. $opts{'M'}) {
+	$colors{$sig} = $im->colorAllocate(get_rgb($sig));
+    }
+
+    foreach my $mapdata (sort { $a->[0] <=> $b->[0] } @mapdata) {
+	my $level = shift @$mapdata;
+	my $poly = new GD::Polygon;
+	$poly->addPt(int($imgx*(($opts{'L'}-$mapbounds[1])/($mapbounds[3]-$mapbounds[1]))),
+		     int($imgy-$imgy*(($opts{'l'}-$mapbounds[0])/($mapbounds[2]-$mapbounds[0]))));
+	foreach my $coords (@$mapdata) {
+	    $poly->addPt(int($imgx*(($coords->[1]-$mapbounds[1])/($mapbounds[3]-$mapbounds[1]))),
+		     int($imgy-$imgy*(($coords->[0]-$mapbounds[0])/($mapbounds[2]-$mapbounds[0]))));
+	}
+	$im2->filledPolygon($poly, $colors{$level});
+    }
+    $im->copyMerge($im2, 0, 0, 0, 0, $imgx, $imgy, 50);
+    open(O,">$opts{map}");
+    print O $im->png;
+    close(O);
+}
 
 sub Debug {
     print @_ if ($opts{'d'});
 }
+
+sub get_rgb {
+    my ($value, $min, $max) = @_;
+    $min = $opts{'m'} if (!$min);
+    $max = $opts{'M'} if (!$max);
+
+    return hsv_to_rgb((($value-$min) / ($max - $min)) * $opts{'hue'});
+}
+
 
 sub get_color {
     my ($value, $min, $max) = @_;
