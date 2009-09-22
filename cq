@@ -405,6 +405,7 @@ sub close_history {
 
 
 my $scancount = 0;
+# bogus search key: scan_next
 sub next_scan {
     my $time = time();
     my $next;

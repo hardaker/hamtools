@@ -135,6 +135,12 @@ sub popup_channel_menu {
     $item = $menu->Append(2101, "Info");
     EVT_MENU($menu, 2101, sub { OnInfo($channel) });
 
+    $item = $menu->Append(2102, "Disable all channels above this one");
+    EVT_MENU($menu, 2102, sub { OnDisableAbove($channel) });
+
+    $item = $menu->Append(2103, "Enable this and all channels above this one");
+    EVT_MENU($menu, 2103, sub { OnEnableAbove($channel) });
+
 #     $menu->Append(2101, "Test Item 2");
 #     EVT_MENU($menu, 2101, sub { got_something("2", $channelb->{'channel'})});
 #     $menu->AppendCheckItem(2102, "Check1 on");
@@ -212,6 +218,30 @@ sub OnEnable {
 	$main::config{$channel}{'enabled'} = 'false';
 	set_channel_button($channel, wxSLANT);
 	$main::config{$channel}{'button'}->SetLabel("(D) $channel");
+    }
+}
+
+sub OnDisableAbove {
+    my ($channel) = $_[0];
+    my $priority = $main::config{$channel}{'priority'};
+    foreach my $todo (@main::toscan) {
+	if ($main::config{$todo}{'priority'} > $priority) {
+	    $main::config{$todo}{'enabled'} = 'false';
+	    set_channel_button($todo, wxSLANT);
+	    $main::config{$todo}{'button'}->SetLabel("(D) $todo");
+	}
+    }
+}
+
+sub OnEnableAbove {
+    my ($channel) = $_[0];
+    my $priority = $main::config{$channel}{'priority'};
+    foreach my $todo (@main::toscan) {
+	if ($main::config{$todo}{'priority'} >= $priority) {
+	    $main::config{$todo}{'enabled'} = 'true';
+	    set_channel_button($todo);
+	    $main::config{$todo}{'button'}->SetLabel("$todo");
+	}
     }
 }
 
