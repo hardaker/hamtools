@@ -482,3 +482,62 @@ sub Error {
 sub Verbose {
     print STDERR @_ if ($opts{'v'});
 }
+
+=cut
+
+=head1 NAME
+
+cq - scan a set of channels or frequencies
+
+=head1 SYNOPSIS
+
+cq operates in two modes: scanning channels for traffic or scanning
+for generating a histogram.
+
+=head1 USAGE
+
+  cq -scan repeatername1,repeatername2,simplexname1,...
+
+=head1 CONFIG FILE
+
+$HOME/.cqrc can contain the following definition lines:
+
+=head2 CHANNEL LINES
+
+Lines that define channels look like:
+
+  repeatername: 147.000,checkevery=5,priority=10
+
+Which specifies the frequency to check, how often to check it and it's
+priority level.
+
+=head3 Range lines
+
+Ranges are also allowed:
+
+  20mSSB: 14.150-14.350,interval=.01
+
+=head3 Tokens
+
+=over
+
+=item checkevery
+
+=item priority
+
+=item interval
+
+(only used for ranges)
+
+=item enabled
+
+Generally this isn't needed, but if set to I<false> it won't be used.
+
+=back
+
+=head1 DESCRIPTION
+
+
+
+=cut
+
