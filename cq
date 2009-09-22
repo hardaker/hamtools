@@ -46,7 +46,7 @@ our %config;
 our %groups;
 our @skips;
 # scanning vars
-our ($currentchannel, $currentstart, $currentlivetime, @toscan);
+our ($currentchannel, $currentstart, $currentlivetime, @toscan, @pastchannels);
 our $locked = 0;
 
 our %modes =
@@ -358,7 +358,14 @@ sub next_scan {
     #
     # see if the current channel is still active (or else forget it
     #
-    if ($currentchannel) {
+    while ($currentchannel || $#pastchannels > -1) {
+
+	if ($currentchannel eq '') {
+	    $currentchannel = shift @pastchannels;
+	    set_channel($currentchannel);  # XXX: need a min setting; not full
+	    Verbose("falling back to $currentchannel\n");
+	}
+
 	# see if current is active
 	$currentlevel = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
 
@@ -451,7 +458,6 @@ sub next_scan {
 	$rig->set_freq($frequency * 1000000);
 	$rig->set_mode($modes{$config{$next}{'mode'}},0)
 	  if ($config{$next}{'mode'});
-	# XXX: mode
 
 	# sleep the scan time length
 	usleep($opts{'u'} * 1000000);
@@ -468,6 +474,7 @@ sub next_scan {
 	if ($newchan > $opts{'l'}) {
 	    # use the current frequency of the new channel
 	    # remember this one as the new "best"
+	    push @pastchannels, $currentchannel;
 	    $currentchannel = $next;
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");

@@ -25,17 +25,34 @@ my $mainpanel;
 my $subpanel;
 my $grid;
 
+
+sub OnInfo {
+    use CQ::ChannelInfo;
+    my ($channel) = @_;
+    my $frame = CQ::ChannelInfo->new($channel, "Channel Info", [-1,-1], [-1,-1]);
+    unless ($frame) {
+	print "unable to create info frame -- exiting."; 
+	exit(1);
+    }
+    $frame->Show( 1 );
+    1;
+}
+
 sub popup_channel_menu {
     my ($channelb, $event) = @_;
     my $menu = new Wx::Menu;
     my $frame = new Wx::Frame;
     my $channel = $channelb->{'channel'};
     my $item;
+
     $item = $menu->AppendCheckItem(2100, "Enabled");
     if ($main::config{$channel}{'enabled'} ne 'false') {
 	$item->Check(1);
     }
     EVT_MENU($menu, 2100, sub { OnEnable($channel) });
+
+    $item = $menu->Append(2101, "Info");
+    EVT_MENU($menu, 2101, sub { OnInfo($channel) });
 
 #     $menu->Append(2101, "Test Item 2");
 #     EVT_MENU($menu, 2101, sub { got_something("2", $channelb->{'channel'})});
