@@ -1,0 +1,252 @@
+#!/usr/bin/perl
+
+use XML::Simple;
+use Data::Dumper;
+use Date::Parse;
+
+my %opts = 
+  (
+   'm' => -53,  # generally -54 is the minimum reported on my 857D
+   'M' => 50,   # 50 = max signal reported on my 857D
+   'opaque' => int(255*50/100),
+   'hue' => .8, # hue range
+  );
+
+#
+# read the command line options (and provide help output)
+#
+LocalGetOptions(\%opts,
+		["GUI:separator",   "Input:"],
+		["g|gpx-file=s",    "GPS track in GPX format"],
+		["s|signal-file=s", "signalrecord output file"],
+		["l|lat=s",         "Recevier latitute"],
+		["L|lon=s",         "Recevier longitude"],
+
+		["GUI:separator",   "Output:"],
+		["o|output-file=s", "Output KML file"],
+		["m|min-level=s",   "Minimum signal level to report"],
+		["M|max-level=s",   "Maximum signal level"],
+		["hue=s",           "Hue Range (0..this)"],
+
+		["GUI:separator",   "Debugging:"],
+		["d|debug",         "Debugging output"],
+	       );
+
+die ("-g, -s and -o are mandatory")
+  if (!$opts{'g'} || !$opts{'s'} || !$opts{'o'});
+
+die ("--lat, --lon are mandatory")
+  if (!$opts{'l'} || !$opts{'L'});
+
+my $gpx = XMLin($opts{'g'}, ForceArray => 1);
+my $sig = XMLin($opts{'s'}, ForceArray => 1);
+
+#print Dumper($gpx);
+open(KML,">$opts{'o'}");
+
+# GPX:  $gpx->{'trk'}[0..]{'trkseg'}[0..]{'trkpt'}[0..]{@ele,@time,$lat,$lon}
+# time => '2008-09-08T14:51:36Z'
+
+# SIG: $sig->{signal}[0..]{frequency}
+# SIG: $sig->{signal}[0..]{record}[0..]{$level,$secs,$usecs}
+
+# Loop over each signal data point
+
+my $gpxindex = 0;
+my ($lat, $lon, $lastlat, $lastlon);
+my $trkpts = $gpx->{'trk'}[0]{'trkseg'}[0]{'trkpt'};
+my $numpts = $#{$trkpts};
+
+die "empty track data" if ($numpts <= 1);
+
+$trkpts->[$gpxindex]{'unix'} = str2time($trkpts->[$gpxindex]{'time'}[0]);
+$trkpts->[$gpxindex+1]{'unix'} = str2time($trkpts->[$gpxindex+1]{'time'}[0]);
+
+
+# print the KML header
+print KML "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<kml xmlns=\"http://earth.google.com/kml/2.2\">
+<Document>
+  <name>Created with sig2kml</name>
+  <open>1</open>
+  <description>This file depicts signal strengths recorded from various points transmitted from locations recorded by a GPS</description>
+  <Folder>
+    <name>Path</name>
+    <description>One path and areas</description>
+    <Placemark>
+      <name>Receiver</name>
+      <Point>
+        <extrude>1</extrude>
+        <tessellate>0</tessellate>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <coordinates>$opts{L},$opts{l},150</coordinates>
+      </Point>
+    </Placemark>
+";
+
+top:
+foreach my $signal (@{$sig->{'signal'}}) {
+    Debug("starting report for freq=$signal->{'frequency'}\n");
+    for (my $i = 0; $i < $#{$signal->{'record'}}; $i++) {
+
+	next if ($i > 0 && $signal->{'record'}[$i]{'level'} == $signal->{'record'}[$i-1]{'level'});
+
+	# find the gpx track point for the current
+	while ($gpxindex < $numpts &&
+	       $trkpts->[$gpxindex+1]{'unix'} < $signal->{'record'}[$i]{'secs'}) {
+	    $gpxindex++;
+	    $trkpts->[$gpxindex+1]{'unix'} =
+	      str2time($trkpts->[$gpxindex+1]{'time'}[0]);
+	}
+	if ($gpxindex >= $numpts) {
+	    print STDERR "ERROR: GPS track not long enough to cover all of the signal data\n";
+	    last top;
+	}
+
+	$lat = ($trkpts->[$gpxindex]{'lat'} + $trkpts->[$gpxindex+1]{'lat'})/2;
+	$lon = ($trkpts->[$gpxindex]{'lon'} + $trkpts->[$gpxindex+1]{'lon'})/2;
+
+	if ($signal->{'record'}[$i]{'level'} < $opts{'m'}) {
+            $lastlat = $lat;
+            $lastlon = $lon;
+            next;
+        }
+
+	if ($lastlat && $lastlon && ($lastlat ne $lat || $lastlon ne $lon)) {
+	    # only print a triangle if we have the last ones and
+	    # they're different.
+	    # XXX: different *enough* would be nice
+
+	    my $col = get_color($signal->{'record'}[$i]{'level'});
+	    print $signal->{'record'}[$i]{'level'} . " -> " .
+	      $col . "\n";
+
+	    my $alt = int(100*($signal->{'record'}[$i]{'level'}-$opts{'m'})/
+			  ($opts{'M'}-$opts{'m'}));
+	    print KML "    <Placemark>
+      <name>Tri$i</name>
+      <Style>
+        <PolyStyle>
+          <color>$col</color>
+        </PolyStyle>
+        <LineStyle>
+          <width>0</width>
+          <color>$col</color>
+        </LineStyle>
+      </Style>
+      <Polygon id=\"poly$i\">
+        <extrude>0</extrude>
+        <tessellate>1</tessellate>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+  $opts{'L'},$opts{'l'},$alt   $lon,$lat,$alt   $lastlon,$lastlat,$alt  $opts{'L'},$opts{'l'},$alt
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+";
+	}
+
+	# ok, we can now do a point between the last position and current
+	if (0) {
+	print "$gpxindex: $trkpts->[$gpxindex]{'unix'} - $trkpts->[$gpxindex+1]{'unix'}\n";
+	print "  $trkpts->[$gpxindex]{'lat'} - $trkpts->[$gpxindex]{'lat'}\n";
+	print "  $trkpts->[$gpxindex+1]{'lon'} - $trkpts->[$gpxindex+1]{'lon'}\n";
+	print "  lev = $signal->{'record'}[$i]{'level'}\n";
+	}
+
+	$lastlat = $lat;
+	$lastlon = $lon;
+    }
+}
+
+print KML "
+  </Folder>
+</Document>
+</kml>
+";
+
+
+sub Debug {
+    print @_ if ($opts{'d'});
+}
+
+sub get_color {
+    my ($value, $min, $max) = @_;
+    $min = $opts{'m'} if (!$min);
+    $max = $opts{'M'} if (!$max);
+
+    # hue range is from 0 -> .8 (since .99 is back to red)
+    sprintf("%02x%02x%02x%02x",
+	    $opts{'opaque'},
+	    hsv_to_bgr((($value-$min) / ($max - $min)) * $opts{'hue'}));
+}
+
+
+sub hsv_to_bgr {
+    return reverse(hsv_to_rgb(@_));
+}
+
+#
+# utility: convert hsv to rgb
+sub hsv_to_rgb {
+    my $h = shift;
+    $h = $h * 6;
+    my $s = 1;
+    my $v = 1;
+    my $i = int($h);
+    my $f = $h - $i;
+    if ($i % 2 == 0) {
+	$f = 1 - $f;
+    }
+    my $m = $v * (1 - $s);
+    my $n = $v * (1 - $s * $f);
+    return ($v * 255, $n * 255, $m * 255) if ($i == 6 || $i == 0);
+    return ($n * 255, $v * 255, $m * 255) if ($i == 1);
+    return ($m * 255, $v * 255, $n * 255) if ($i == 2);
+    return ($m * 255, $n * 255, $v * 255) if ($i == 3);
+    return ($n * 255, $m * 255, $v * 255) if ($i == 4);
+    return ($v * 255, $m * 255, $n * 255) if ($i == 5);
+}
+
+#######################################################################
+# Getopt::GUI::Long portability wrapper
+#
+sub LocalGetOptions {
+    if (eval {require Getopt::GUI::Long;}) {
+	import Getopt::GUI::Long;
+	# optional configure call
+	Getopt::GUI::Long::Configure(qw(display_help no_ignore_case
+					capture_output));
+	return GetOptions(@_);
+    }
+    require Getopt::Long;
+    import Getopt::Long;
+    # optional configure call
+    Getopt::Long::Configure(qw(auto_help no_ignore_case));
+    my $ret = GetOptions(LocalOptionsMap(@_));
+    if ($opts{'h'}) {
+	print STDERR "You need to install the perl Getopt::GUI::Long perl module to get help output;\n";
+	exit 1;
+    }
+    return $ret;
+}
+
+sub LocalOptionsMap {
+    my ($st, $cb, @opts) = ((ref($_[0]) eq 'HASH')
+			    ? (1, 1, $_[0]) : (0, 2));
+    for (my $i = $st; $i <= $#_; $i += $cb) {
+	if ($_[$i]) {
+	    next if (ref($_[$i]) eq 'ARRAY' && $_[$i][0] =~ /^GUI:/);
+	    push @opts, ((ref($_[$i]) eq 'ARRAY') ? $_[$i][0] : $_[$i]);
+	    push @opts, $_[$i+1] if ($cb == 2);
+	}
+    }
+    push @opts,"h|help";
+    return @opts;
+}
+
+=cut
