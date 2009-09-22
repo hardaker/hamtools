@@ -344,17 +344,13 @@ if ($opts{'w'}) {
 }
 
 sub set_channel {
-    my ($channel, $justbasics) = @_;
+    my ($channel, $justbasics, $label) = @_;
     die "no channel to switch to" if (!$channel);
     $channel = uc($channel);
     $currentstart = time();
 
     # mark the current channel as done history-wise
-    if ($currentchannel) {
-	$config{$currentchannel}{'history'}
-	  [$#{$config{$currentchannel}{'history'}}]
-	    [1] = $currentstart;
-    }
+    close_history($currentchannel, $currentstart+1);
 
     # set the frequency
     my $freq = $config{$channel}{'currentfrequency'}
@@ -365,7 +361,7 @@ sub set_channel {
     $currentchannel = $channel;
 
     # mark the new channel as beginning
-    push @{$config{$channel}{'history'}},[$currentstart];
+    start_history($channel, $currentstart, $label);
 
     return if ($justbasics);
 
@@ -375,19 +371,36 @@ sub set_channel {
       if ($config{$channel}{'dcs'});
 }
 
+sub start_history {
+    my ($channel, $time, $label) = @_;
+    $time = time() if (!$time);
+    $label = "" if (!$label);
+    push @{$config{$channel}{'history'}}, [$label, $time];
+}
+
+sub set_history_label {
+    my ($channel, $label) = @_;
+    $config{$channel}{'history'}[$#{$config{$channel}{'history'}}][0]
+      = $label;
+}
+
 sub close_history {
-    my ($channel, $time) = shift;
+    my ($channel, $time, $label) = shift;
     return if (!$channel);
     $time = time() if (!$time);
 
     # ugh: fill in the closing history time if and only if
     # the last history slot wasn't closed yet
 
-    $config{$channel}{'history'}
-      [$#{$config{$channel}{'history'}}]
-	[1] = $time
-	  if ($#{$config{$channel}{'history'}
-		 [$#{$config{$channel}{'history'}}]} == 0);
+    if ($#{$config{$channel}{'history'}
+	   [$#{$config{$channel}{'history'}}]} == 1) {
+	$config{$channel}{'history'}[$#{$config{$channel}{'history'}}][2]
+	  = $time;
+	if ($label) {
+	    $config{$channel}{'history'}[$#{$config{$channel}{'history'}}][0]
+	      = $label;
+	}
+    }
 }
 
 
@@ -520,7 +533,7 @@ sub next_scan {
 
 	# what to check next?
 
-	push @{$config{$next}{'history'}}, [$time];
+	start_history($next);
 	# change the frequency and potentially the mode
 	$rig->set_freq($frequency * 1000000);
 	$rig->set_mode($modes{$config{$next}{'mode'}},0)
@@ -546,6 +559,7 @@ sub next_scan {
 	    $currentchannel = $next;
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");
+	    set_history_label($currentchannel, 'found');
 	} else {
 	    close_history($next, $time+1);
 	}

@@ -34,17 +34,23 @@ sub OnScanPlot {
     my $count = $#main::toscan + 1;
 
     my $height = 20 * $count;
+    my $width = 640;
     my $im = new GD::Image(640,$height);
+    my $black = $im->colorAllocate(0,0,255);
     my $fill = $im->colorAllocate(0,0,255);
     my $white = $im->colorAllocate(255,255,255);
     $im->fill(1,1,$white);
+    my %colors =
+      ('locked' => $im->colorAllocate(255,0,0),
+       'found' => $im->colorAllocate(0,255,0),
+      );
 
     my $now = time();
-    my $startat = $now-300;
     my $textwidth = 100;
+    my $startat = $now-($width-$textwidth);
 
-    my @sorted = 
-      sort { $main::config{$a}{'priority'} <=> $main::config{$b}{'priority'} }
+    my @sorted =
+      sort { $main::config{$b}{'priority'} <=> $main::config{$a}{'priority'} }
 	@main::toscan;
 
     for (my $i = 0; $i < $count; $i++) {
@@ -52,13 +58,13 @@ sub OnScanPlot {
 	my $starty = $i * 20 + 5;
 	my $endy = ($i+1)*20 - 5;
 
-	$im->string(gdSmallFont, 2, $starty, $channel, $fill);
+	$im->string(gdSmallFont, 2, $starty, $channel, $black);
 	
 	foreach my $slot (@{$main::config{$channel}{'history'}}) {
-	    if ($slot->[0] >= $startat) {
-		$im->filledRectangle($slot->[0]           - $startat, $starty,
-				     ($slot->[1] || $now) - $startat, $endy,
-				     $fill);
+	    if ($slot->[1] >= $startat) {
+		$im->filledRectangle($slot->[1]           - $startat, $starty,
+				     ($slot->[2] || $now) - $startat, $endy,
+				     ($colors{$slot->[0]} || $fill));
 	    }
 	}
 
@@ -165,7 +171,7 @@ sub channel_button {
 	$main::locked = 0;
     } else {
 	# lock to a channel
-	main::set_channel($channelb->{'channel'});
+	main::set_channel($channelb->{'channel'},0,'locked');
 	set_channel_button($channelb->{'channel'}, wxNORMAL, wxBOLD);
 	$channelb->SetLabel("(L) $channelb->{'channel'}");
 	$main::locked = 1;
