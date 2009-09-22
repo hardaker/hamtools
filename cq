@@ -40,6 +40,7 @@ GetOptions(\%opts,
 	   ["GUI:separator",   "Output Controls:"],
 	   ["g|gnuplot=s",     "gnuplot data file"],
 	   ["G|graphic=s",     "png data output"],
+	   ["w",                "create an output window"],
 
 	   ["nogui", "Don't show the gui"],
 	  ) || die "bad arguments";
@@ -146,6 +147,21 @@ if ($opts{'g'}) {
 }
 
 if ($opts{'G'}) {
+    my $im = create_freq_graph();
+    open(G,">$opts{'G'}");
+    binmode G;
+    print G $im->png;
+}
+
+if ($opts{'w'}) {
+    my $im = create_freq_graph();
+    open(G,">/tmp/cq.png");
+    binmode G;
+    print G $im->png;
+    close(G);
+}
+
+sub create_freq_graph {
     use GD;
     my $height = 100;
     my $im = new GD::Image($#keys,$height);
@@ -156,12 +172,119 @@ if ($opts{'G'}) {
     my $count = 0;
     foreach my $key (@keys) {
 	$im->rectangle($count, $height - ($data{$key} + 50), $count+1, $height, $fill);
-	print "$count - " . ($data{$key}+50) . "\n";
 	$count++;
     }
+    return $im;
+}
 
-    open(G,">$opts{'G'}");
-    binmode G;
-    print G $im->png;
+#
+# Wx widget support
+#
+package MyApp;
+
+use Wx qw(:everything);
+use Wx::Event qw(EVT_MENU);
+use Wx::App;
+our @ISA=qw(Wx::App);
+
+sub OnInit {
+   my $this = @_;
+   my $frame = MyFrame->new( "Spectrum Plot", [-1,-1], [-1,-1]);
+   #my $this->{FRAME}=$frame;
+   unless ($frame) {
+       print "unable to create frame -- exiting."; 
+       return undef;
+   }
+   $frame->Show( 1 );
+   1;
+}
+
+package MyFrame;
+use vars qw(@ISA);
+use strict;
+#
+#   All we load here are constants used
+#   to keep the image stretched to the dimensions of the window.
+#
+use Wx qw(wxWidth wxHeight wxLeft wxTop wxDefaultPosition wxDefaultSize wxID_CANCEL wxCentreX wxCentreY);
+use Wx::Event qw(:everything);
+#
+#   Wx::Image loads the Image control and all of the Image handlers.
+#
+use IO::File;
+use Wx::Event ;
+our @ISA=qw(Wx::Frame);
+
+
+sub new {
+   my $class = shift;
+   my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
+   #
+   #   replace the filename with something appropriate.
+   #
+   my $file = IO::File->new( "/tmp/cq.png", "r" );
+   unless ($file) {print "Can't load saved png.";return undef};
+   binmode $file;
+   my $handler = Wx::PNGHandler->new();
+   my $image = Wx::Image->new();
+   my $bmp;    # used to hold the bitmap.
+   $handler->LoadFile( $image, $file );
+   $bmp = Wx::Bitmap->new($image); 
+
+   if( $bmp->Ok() ) {
+      #  create a static bitmap called ImageViewer that displays the
+      #  selected image.
+      $this->{ImageViewer}= Wx::StaticBitmap->new($this, -1, $bmp);
+   }
+   $this->{ScaleImage}=0;
+
+   $this->SetAutoLayout( 1 );  # allow wxperl to manage control sizing & placement
+   # Layout constraints provide the guides
+   # for wxperl's autolayout.
+   my $b1 = Wx::LayoutConstraints->new();
+   my $b2 = Wx::LayoutConstraints->new();
+
+   # These constrainst define the placement and
+   # dimensions of the controls they're bound to,
+   # and can be either absolute, or relative to
+   # other controls
+   $b1->left->Absolute(0);
+   $b1->top->Absolute(0);
+   $b1->width->PercentOf( $this, wxWidth,50);
+   $b1->height->PercentOf( $this, wxHeight, 100);
+   $this->{ImageViewer}->SetConstraints($b1);
+
+   #
+   # Set up the menu bar.
+   #
+   my $file_menu = Wx::Menu->new();
+   my ($OPEN_NEW_DIR, $REMOVE_DIR, $SCALE_IMAGE, $APP_QUIT)=(1..100);
+   $file_menu-> Append( $OPEN_NEW_DIR, "&Open A Directory\tCtrl-O");
+   $file_menu->AppendSeparator();
+   $file_menu->Append($SCALE_IMAGE,"&Scale Images To Window\tCtrl-S","",1);
+   $file_menu->AppendSeparator();
+   $file_menu->Append ($APP_QUIT, "E&xit\tCtrl-x","Exit Application");
+   #
+   # Note that even though there are 6 options, only
+   # 4 of them are active as they're the only ones
+   # bound to event handlers.
+   #
+#   EVT_MENU($this, $OPEN_NEW_DIR, \&OnDirDialog);
+#   EVT_MENU($this, $SCALE_IMAGE,  \&Set_Scale);
+   EVT_MENU($this, $APP_QUIT,     sub {$_[0]->Close( 1 )});
+
+   my $menubar= Wx::MenuBar->new();
+   $menubar->Append ($file_menu, "&File");
+   $this->SetMenuBar($menubar);
+
+   $this;  # return the frame object to the calling application.
+}
+
+
+package main;
+
+if ($opts{'w'}) {
+    my $app = MyApp->new();	# create
+    $app->MainLoop();		# go
 }
 
