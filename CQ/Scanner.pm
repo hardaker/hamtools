@@ -26,7 +26,7 @@ my $mainpanel;
 my $subpanel;
 my $grid;
 
-sub OnScanPlot {
+sub generate_history_plot {
     Die("You need to install the GD module before you can create graphs")
       if (! eval { require GD; });
     use GD;
@@ -68,7 +68,10 @@ sub OnScanPlot {
 	my $starty = $i * 20 + 5;
 	my $endy = ($i+1)*20 - 5;
 
-	$im->string(gdSmallFont, 2, $starty, $channel, $black);
+	$im->string(gdSmallFont, 2, $starty,
+		    sprintf("%5d %s", $main::config{$channel}{'priority'},
+			    $channel),
+		    $black);
 	
 	foreach my $slot (@{$main::config{$channel}{'history'}}) {
 	    if ($slot->[1] >= $startat) {
@@ -87,10 +90,14 @@ sub OnScanPlot {
     binmode G;
     print G $im->png;
     close(G);
+}
 
+sub OnScanPlot {
+    generate_history_plot();
     use CQ::ShowImage;
     my ($channel) = @_;
-    my $frame = CQ::ShowImage->new("/tmp/cqb.png", "Scanner Timing",
+    my $frame = CQ::ShowImage->new("/tmp/cqb.png", \&generate_history_plot,
+				   "Scanner Timing",
 				   [-1,-1], [-1,-1]);
     unless ($frame) {
 	print "unable to create scanning frame -- exiting."; 
