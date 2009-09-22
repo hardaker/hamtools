@@ -1,0 +1,122 @@
+<!-- this is a makerelease script: http://makerelease.sourceforge.net/ -->
+<makerelease>
+  <steps>
+
+    <step type="prompt" prompt="Enter the new version number:"
+      title="Pick A Version Number"
+      parameter="VERSION" values="^[\.\d]+$"
+      />
+
+    <step type="modify" title="Modify the source files"
+      stepname="release:versionstamp">
+      <text>
+	Modifying the various source files.
+      </text>
+      <modifications>
+	<modify
+	  find="VERSION = '(.*)'"
+	  replace="VERSION = \'{VERSION}\'">
+	  <files>
+	    <file>cq</file>
+	    <file>sig2kml</file>
+	    <file>signalrecord</file>
+	    <file>ezrnec</file>
+	    <file>signalcount</file>
+	    <file>CQ/*.pm</file>
+	  </files>
+	</modify>
+      </modifications>
+    </step>
+
+    <step type="command" title="Compare Diffs">
+      <commands>
+	<command>svk diff</command>
+      </commands>
+    </step>
+
+    <step type="command" title="SVK Commit the changes" interactive="1">
+      <commands>
+	<command>svk commit -m "Update Version Number: {VERSION}"</command>
+      </commands>
+    </step>
+
+    <step type="command" title="Making html pages">
+      <commands>
+	<command>pod2html cq > cq.html</command>
+	<command>pod2html sig2kml > sig2kml.html</command>
+	<command>pod2html ezrnec > ezrnec.html</command>
+	<command>pod2html signalrecord > signalrecord.html</command>
+	<command>pod2html signalcount > signalcount.html</command>
+      </commands>
+    </step>
+
+    <step type="command" title="Installing html">
+      <commands>
+	<command>scp cq.html sig2kml.html ezrnec.html signalrecord.html signalcount.html dh.hardakers.net:hamtools.org/docs/</command>
+	<command>scp www/*.html www/*.css dh.hardakers.net:hamtools.org/</command>
+      </commands>
+    </step>
+
+    <step type="informational" pause="1" title="update NEWS">
+      <text>
+	Update the NEWS file to reflect changes made to version {VERSION}
+
+	I'll run "svk commit" next.
+      </text>
+    </step>
+
+    <step type="command" title="SVK Commit the NEWS" interactive="1">
+      <commands>
+	<command>svk commit -m "Version Update: {VERSION}" NEWS</command>
+      </commands>
+    </step>
+
+    <step type="section" interactive="1" title="Create Release">
+      <text>
+	We'll now create the SVK tag and export the results to a tar ball.
+
+	Quit now if you're not ready to finish the release.
+      </text>
+      <steps>
+
+	<step type="command" title="svk tag the release">
+	  <commands>
+	    <command>svk copy -m "tag of version {VERSION}" //local/Ham/hamtools/trunk //local/Ham/hamtools/tags/hamtools-{VERSION}</command>
+	  </commands>
+	</step>
+
+	<step type="command" title="svk export the results">
+	  <commands>
+	    <command>svk export //local/Ham/hamtools/tags/hamtools-{VERSION} hamtools-{VERSION}</command>
+	  </commands>
+	</step>
+
+	<step type="command" title="create the tar and zip files">
+	  <commands>
+	    <command>tar czf hamtools-{VERSION}.tar.gz hamtools-{VERSION}</command>
+	    <command>zip -r hamtools-{VERSION}.zip hamtools-{VERSION}</command>
+	  </commands>
+	</step>
+
+	<step type="command" title="create the executable binary">
+	  <commands>
+	    <command>sh Makefile.pp</command>
+	    <command>mv cq-linux cq-{VERSION}.linux</command>
+	    <command>mv signalrecord-linux signalrecord-{VERSION}.linux</command>
+	    <command>mv sig2kml-linux sig2kml-{VERSION}.linux</command>
+	    <command>mv signalcount-linux signalcount-{VERSION}.linux</command>
+	    <command>mv ezrnec-linux ezrnec-{VERSION}.linux</command>
+	  </commands>
+	</step>
+
+	<step type="command" title="upload the results to sourceforge">
+	  <commands>
+	    <command>rsync -v hamtools-{VERSION}.tar.gz hamtools-{VERSION}.zip cq-{VERSION}.linux signalrecord-{VERSION}.linux sig2kml-{VERSION}.linux signalcount-{VERSION}.linux ezrnec-{VERSION}.linux dh.hardakers.net:hamtools.org/releases/</command>
+	  </commands>
+	</step>
+
+      </steps>
+    </step>
+
+  </steps>
+</makerelease>
