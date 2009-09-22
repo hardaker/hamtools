@@ -88,6 +88,10 @@ LocalGetOptions(\%opts,
 	   ["hangtime=s",          "time in seconds to hang on an empty channel after traffic stops"],
 	   ["C|scancount=s",       "Number of stations to scan by default at once before returning to the locked one."],
 
+	   ["GUI:separator",   "Other Commands:"],
+	   ["set=s",           "Set a channel directly by name and quit"],
+	   ["list=s",           "List channels matching a string (regexp) and quit"],
+		
 	   ["GUI:separator",   "Hamlib Controls:"],
 	   ["P|port=s",        "Port to use (/dev/ttyS0)"],
 	   ["M|model=s",         "Rig model (122)"],
@@ -203,6 +207,19 @@ if ($opts{'load'}) {
 } elsif ($opts{'set'}) {
     Verbose("Setting channel to $opts{'set'}\n");
     set_channel($opts{'set'});
+    exit;
+
+#
+# just set a particular frequency
+#
+} elsif ($opts{'list'}) {
+    $opts{'list'} = uc($opts{'list'});
+    foreach my $channel (keys(%config)) {
+	if ($channel =~ /$opts{'list'}/o) {
+	    printf("%-20s %-3d  %s\n", $channel, $config{$channel}{'priority'},
+		   $config{$channel}{'frequency'});
+	}
+    }
     exit;
 
 #
