@@ -21,8 +21,8 @@ my %opts =
 LocalGetOptions(\%opts,
 		["GUI:separator",   "Hamlib Controls:"],
 		["P|port=s",        "Port to use (/dev/ttyS0)"],
-		["M|model=s",         "Rig model (122)"],
-		["S|speed=s",       "serial speed"],
+		["M|model=s",         "Rig model (eg 122)"],
+		["S|speed=s",       "serial speed (eg 38400)"],
 
 		["GUI:separator",   "Output Controls:"],
 		["t|sleep-time=s",  "Time between measurements (in second)"],
