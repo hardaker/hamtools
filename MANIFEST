@@ -1,8 +1,9 @@
 cq
 CQ/App.pm
+CQ/ChannelInfo.pm
 CQ/Scanner.pm
+CQ/ShowImage.pm
 CQ/Spectrum.pm
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
-MyScanner.pm
