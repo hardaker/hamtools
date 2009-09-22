@@ -41,12 +41,12 @@ sub new {
     $grid = new Wx::FlexGridSizer(0,2);
     #   $grid = new Wx::BoxSizer(wxHORIZONTAL);
 
-    add_info("Channel:", $channel);
-    add_info("Frequency:", $main::config{$channel}{'frequency'});
+    add_info("Channel: ", $channel);
+    add_info("Frequency: ", $main::config{$channel}{'frequency'});
 
     foreach my $key (sort keys(%{$main::config{$channel}})) {
 	next if (ref($main::config{$channel}{$key}) ne '');
-	add_info($key, $main::config{$channel}{$key});
+	add_info($key . ": ", $main::config{$channel}{$key});
     }
 
     $subpanel->SetSizerAndFit($grid);
