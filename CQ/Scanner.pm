@@ -154,6 +154,15 @@ sub popup_channel_menu {
     }
     EVT_MENU($menu, $menuid, sub { OnEnable($channel) });
 
+    $item = $menu->Append(++$menuid, "Skip This Conversation");
+    EVT_MENU($menu, $menuid, sub { 
+		 $main::config{$channel}{'skipconversation'} =
+		   $main::opts{'skip-count'};
+		 if ($channel eq $main::currentchannel) {
+		     main::close_channel();
+		 }
+	     });
+
     $item = $menu->Append(++$menuid, "Disable all channels above this one");
     EVT_MENU($menu, $menuid, sub { OnDisableAbove($channel) });
 
@@ -280,6 +289,9 @@ sub OnEnable {
 	$main::config{$channel}{'enabled'} = 'false';
 	set_channel_button($channel, wxSLANT);
 	set_button_text($channel, "(D) %s");
+	if ($channel eq $main::currentchannel) {
+	    main::close_channel();
+	}
     }
 }
 
