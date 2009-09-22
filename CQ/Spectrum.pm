@@ -1,4 +1,7 @@
 package CQ::Spectrum;
+
+our $VERSION = "0.4";
+
 use vars qw(@ISA);
 use strict;
 #

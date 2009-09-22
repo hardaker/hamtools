@@ -1,5 +1,7 @@
 package CQ::Scanner;
 
+our $VERSION = "0.4";
+
 use Wx qw(:everything :font :textctrl);
 use Wx::Event qw(EVT_MENU);
 use Data::Dumper;

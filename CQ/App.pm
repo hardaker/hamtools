@@ -1,5 +1,7 @@
 package CQ::App;
 
+our $VERSION = "0.4";
+
 use Wx qw(:everything);
 use Wx::Event qw(EVT_MENU);
 use Wx::App;
