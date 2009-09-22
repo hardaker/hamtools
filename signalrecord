@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+our $VERSION = '0.5';
+
 my $havehamlib = 
   eval {
       require Hamlib;
@@ -13,7 +15,8 @@ use Time::HiRes qw(usleep gettimeofday tv_interval);
 $| = 1;
 
 my %opts =
-  (t => 1);
+  (t => 1,
+   u => .07);
 
 #
 # read the command line options (and provide help output)
@@ -27,6 +30,9 @@ LocalGetOptions(\%opts,
 		["GUI:separator",   "Output Controls:"],
 		["t|sleep-time=s",  "Time between measurements (in second)"],
 		["e|every-step",    "Record every interval, not just on signal level changes"],
+		["m|min-level=s",   "minimum level to record"],
+		["u|min-sleep=s",   "minimum sleep between frequency changes"],
+		["f|freq-scan=s",   "frequency-scan the specified X-Y-STEP range"],
 	       );
 
 die("No rig model set; -M, -P and -S are mandatory") if (!exists($opts{'M'}));
@@ -45,6 +51,7 @@ $rig->open();
 
 # start recording
 my $lastfreq = $rig->get_freq();
+my $lastsetfreq;
 my $lastlevel = -999;
 
 # catch sigterm for closing
@@ -56,21 +63,73 @@ print "<?xml version=\"1.0\" encoding=\"utf-8\"?>
   <signal frequency=\"$lastfreq\">
 ";
 
+my ($upperfreq, $lowerfreq, $stepfreq);
+if ($opts{'f'}) {
+    ($lowerfreq, $upperfreq, $stepfreq) = split(/-/,$opts{'f'});
+    $stepfreq = .005 if (!$stepfreq);
+    $lastsetfreq = $lowerfreq-$stepfreq;
+}
+
+my $closed = 0;
+
+sub close_out {
+    print "  </signal>\n" if (!$closed);
+    print "</signals>\n";
+    exit;
+}
+
+$SIG{'INT'} = \&close_out;
+$SIG{'PIPE'} = \&close_out;
+
+
 while (1) {
-    my $freq = $rig->get_freq();
-    if ($lastfreq ne $freq) {
-	# Change signal frequency in output
-	print "  </signal>\n";
-	print "  <signal frequency=\"$freq\">\n";
-	$lastfreq = $freq;
+    my $freq;
+
+    if ($lowerfreq) {
+	$freq = $lastsetfreq + $stepfreq;
+	if ($freq > $upperfreq) {
+	    $freq = $lowerfreq;
+	}
+	$rig->set_freq($freq * 1000000);
+	$lastsetfreq = $freq;
+    } else {
+	$freq = $rig->get_freq();
     }
+
     my $value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
     my $time = [gettimeofday];
 
-    if ($opts{'e'} || $lastlevel ne $value) {
-	print "    <record level=\"$value\" secs=\"$time->[0]\" usecs=\"$time->[1]\"/>\n";
-	$lastlevel = $value;
+    if ($lastfreq ne $freq) {
+
+	if (defined($opts{'u'})) {
+	    usleep($opts{'u'} * 1000000) ;
+	    $value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	}
+	
+	if (!$closed) {
+	    # record it anyway for changing
+	    print "    <record level=\"$value\" secs=\"$time->[0]\" usecs=\"$time->[1]\" />\n";
+
+	    # Change signal frequency in output
+	    print "  </signal>\n";
+	    $closed = 1;
+	}
+
+	$lastfreq = $freq;
     }
+
+    if ((!defined($opts{'m'}) ||
+	 $value > $opts{'m'} || $lastvalue > $opts{'m'}) &&
+	($opts{'e'} || $lastlevel ne $value)) {
+
+	if ($closed) {
+	    print "  <signal frequency=\"$freq\">\n";
+	    $closed = 0;
+	}
+
+	print "    <record level=\"$value\" secs=\"$time->[0]\" usecs=\"$time->[1]\"/>\n";
+    }
+    $lastlevel = $value;
     usleep($opts{'t'} * 1000000);
 }
 
