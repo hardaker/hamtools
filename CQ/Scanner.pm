@@ -309,6 +309,9 @@ sub new {
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
    EVT_MENU($this, $MENU_USAGE, \&OnScanPlot);
 
+   my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   $mbar->Append($configmenu, "&Config");
+
    my $enableid = 4000;
    my($menable) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    foreach my $channel (@main::toscan) {
@@ -334,7 +337,7 @@ sub new {
        EVT_MENU($this, $gridid, sub {OnGrid("$rowcount");});
        $gridid++;
    }
-   $mbar->Append($mgrid, "&Rows");
+   $configmenu->AppendSubMenu($mgrid, "&No. Button Rows");
 
    my $maxcountid = 4300;
    my ($mmaxcount) = Wx::Menu->new(undef, wxMENU_TEAROFF);
@@ -348,7 +351,7 @@ sub new {
 
        $maxcountid++;
    }
-   $mbar->Append($mmaxcount, "&Max Scan");
+   $configmenu->AppendSubMenu($mmaxcount, "&Scan Count Maximum");
 
    load_buttons();
 
