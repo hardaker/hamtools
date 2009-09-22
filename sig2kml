@@ -135,10 +135,10 @@ foreach my $signal (@{$sig->{'signal'}}) {
 	    # XXX: different *enough* would be nice
 
 	    my $col = get_color($lastlevel);
-	    print $currentlevel . " -> " .
+	    print $lastlevel . " -> " .
 	      $col . "\n";
 
-	    my $alt = int(100*($currentlevel-$opts{'m'})/
+	    my $alt = int(100*($lastlevel-$opts{'m'})/
 			  ($opts{'M'}-$opts{'m'}));
 	    print KML "    <Placemark>
       <name>Tri$i</name>
