@@ -1,0 +1,87 @@
+#!/usr/bin/perl
+
+our $VERSION = '0.5';
+
+use XML::Simple;
+use Data::Dumper;
+use Math::Round; 
+
+my $min = -30;
+
+my %signalcounts;
+
+my %opts = (m => -30);
+
+LocalGetOptions(\%opts,
+		["m|min-level=s",   "Minimum signal level to accept (default = -30)"],
+
+		["f|frequency-range=s", "Output Frequency Range (x-y-step)"],
+		["GUI:otherargs_text", "SIGNALRECORD_XML_FILES"],
+	       );
+
+my $min = $opts{'m'};
+
+foreach my $file (@ARGV) {
+    my $doc = XMLin($file, ForceArray => 1);
+
+  top:
+    foreach my $signal (@{$doc->{'signal'}}) {
+	foreach my $rec (@{$signal->{'record'}}) {
+	    if ($rec->{'level'} >= $min) {
+		my $freq = nearest(.005, $signal->{'frequency'});
+		# my $freq = int(1000*$signal->{'frequency'})/1000;
+		$signalcounts{$freq}++;
+		next top;
+	    }
+	}
+    }
+}
+
+
+if ($opts{'f'}) {
+    my ($min, $max, $step) = split(/\s*-\s*/,$opts{'f'});
+    for (my $f = $min; $f <= $max; $f += $step) {
+	print "$f\t" . ($signalcounts{$f} || 0) . "\n";
+    }
+} else {
+    foreach my $freq (sort(keys(%signalcounts))) {
+	print "$freq\t" . ($signalcounts{$freq} || 0) . "\n";
+    }
+}
+
+#######################################################################
+# Getopt::GUI::Long portability wrapper
+#
+sub LocalGetOptions {
+    if (eval {require Getopt::GUI::Long;}) {
+	import Getopt::GUI::Long;
+	# optional configure call
+	Getopt::GUI::Long::Configure(qw(display_help no_ignore_case
+					capture_output));
+	return GetOptions(@_);
+    }
+    require Getopt::Long;
+    import Getopt::Long;
+    # optional configure call
+    Getopt::Long::Configure(qw(auto_help no_ignore_case));
+    my $ret = GetOptions(LocalOptionsMap(@_));
+    if ($opts{'h'}) {
+	print STDERR "You need to install the perl Getopt::GUI::Long perl module to get help output;\n";
+	exit 1;
+    }
+    return $ret;
+}
+
+sub LocalOptionsMap {
+    my ($st, $cb, @opts) = ((ref($_[0]) eq 'HASH')
+			    ? (1, 1, $_[0]) : (0, 2));
+    for (my $i = $st; $i <= $#_; $i += $cb) {
+	if ($_[$i]) {
+	    next if (ref($_[$i]) eq 'ARRAY' && $_[$i][0] =~ /^GUI:/);
+	    push @opts, ((ref($_[$i]) eq 'ARRAY') ? $_[$i][0] : $_[$i]);
+	    push @opts, $_[$i+1] if ($cb == 2);
+	}
+    }
+    push @opts,"h|help";
+    return @opts;
+}
