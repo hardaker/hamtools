@@ -1,7 +1,7 @@
-use Wx qw(:everything);
-use Wx::Event qw(EVT_MENU);
-
 package MyScanner;
+
+use Wx qw(:everything :font :textctrl);
+use Wx::Event qw(EVT_MENU);
 
 use vars qw(@ISA);
 use strict;
@@ -21,19 +21,42 @@ use IO::File;
 use Wx::Event ;
 our @ISA=qw(Wx::Frame);
 
+my $lockbutton;
+my $mainpanel;
+
+sub channel_button {
+    my ($channelb, $event) = @_;
+    main::set_channel($channelb->{'channel'});
+    $main::locked = 1;
+}
+
 sub new {
    my $class = shift;
    my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
+   $mainpanel = $this;
+
    #
    #   replace the filename with something appropriate.
    #
 
    my $panel = Wx::Panel->new($this, -1);
-   my $grid = new Wx::GridSizer(2,3);
+   my $grid = new Wx::GridSizer(1,int(($#main::toscan + 3)/2));
 
-   my $button;
-   $grid->Add($button = Wx::Button->new($panel, 1, 'Lock            '));
-   $this->{'lockbutton'} = $button;
+   my $channelid = 2000;
+   foreach my $channel (@main::toscan) {
+       $main::config{$channel}{'button'} =
+	 Wx::Button->new($panel, $channelid, $channel);
+       my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
+       $main::config{$channel}{'button'}->SetFont($font);
+       $grid->Add($main::config{$channel}{'button'});
+       $main::config{$channel}{'button'}{'channel'} = $channel;
+       EVT_BUTTON($main::config{$channel}{'button'}, $channelid,
+		  \&channel_button);
+       $channelid++;
+   }
+
+   $grid->Add($lockbutton = Wx::Button->new($panel, 1, 'Lock            '));
+   $this->{'lockbutton'} = $lockbutton;
    EVT_BUTTON($this, 1, 
 	      sub {
 		  print STDERR "hi! $_[0] $_[1] $_[2]\n";
@@ -44,8 +67,7 @@ sub new {
 #   Centre();
 
    my $timer = Wx::Timer->new($this, 1000);
-   print "$timer\n";
-   $timer->Start(1000);
+   $timer->Start(1000, 1);
    $this->EVT_TIMER($timer, \&on_timer);
 #   $this->Connect(1000, -1, -1, \&on_timer);
 
@@ -78,8 +100,19 @@ sub new {
 }
 
 sub on_timer {
-#    print STDERR "Time! $_[0] $_[1] $_[2]\n";
-    main::next_scan();
+    if ($main::currentchannel) {
+        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
+        $main::config{$main::currentchannel}{'button'}->SetFont($font);
+    }
+    my $sleeptime = main::next_scan();
+    if ($main::currentchannel) {
+        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxBOLD);
+        $main::config{$main::currentchannel}{'button'}->SetFont($font);
+    }
+    $lockbutton->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
+   my $timer = Wx::Timer->new($mainpanel, 1000);
+   $timer->Start($sleeptime * 1000, 1);
+   $mainpanel->EVT_TIMER($timer, \&on_timer);
 }
 
 

@@ -168,14 +168,7 @@ if ($opts{'load'}) {
 	$app->MainLoop();	# go
     } else {
 	while (1) {
-	    next_scan();
-
-	    # XXX: configurable sleep needed.
-	    if ($currentchannel) {
-		sleep(1);
-	    } else {
-		usleep($opts{'i'} * 1000000);
-	    }
+	    usleep(next_scan() * 1000000);
 	}
     }
 } else {
@@ -273,6 +266,18 @@ if ($opts{'w'}) {
     $app->MainLoop();		# go
 }
 
+sub set_channel {
+    my ($channel) = @_;
+    die "no channel to switch to" if (!$channel);
+    $rig->set_freq($config{$channel}{'frequency'} * 1000000);
+    $rig->set_ctcss_tone($config{$channel}{'tone'} * 10)
+      if ($config{$channel}{'tone'});
+    $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
+      if ($config{$channel}{'dcs'});
+    $currentchannel = $channel;
+    $currentstart = time();
+}
+
 sub next_scan {
     my $time = time();
     my $next = "";
@@ -282,7 +287,7 @@ sub next_scan {
 
     if ($locked) {
 	Verbose("  Locked...\n");
-	return;
+	return 1;
     }
 
     #
@@ -410,6 +415,12 @@ sub next_scan {
 
 	# remember the last time we checked this new channel
 	$config{$next}{'lastchecked'} = time();
+    }
+
+    if ($currentchannel) {
+	return 1; # XXX: make configurable
+    } else {
+	return .0001; # XXX: make configurable (1ms minimum for Wx)
     }
 }
 
