@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+our $VERSION = '0.5';
+
 # NEC info:
 # http://www.nec2.org/part_3/toc.html
 
@@ -17,9 +19,10 @@ use strict;
 
 my $tagnum;
 my $lastcoord;
+my %haveseen;
 
 while(<>) {
-    next if (/^#/);
+    next if (/^#/ || /^\s*$/);
 
     #
     # generic top level things we allow
@@ -96,7 +99,7 @@ while(<>) {
 
     # geometry section
     if ($mode eq 'geometry' && /^GE/) {
-	$mode eq 'excite';
+	$mode eq 'control';
 	print;
     } elsif ($mode eq 'geometry') {
 	# process geometry tokens
@@ -135,10 +138,44 @@ while(<>) {
 
             # XXX: proper printf for spacing
 	    print "GW $tagnum $params{'segments'} $line $params{'radius'}\n";
+	} elsif (/^\s*(GE|end)/) {
+	    print "GE\n";
+	    $mode = 'control';
+	    next;
 	} else {
+	    /^\s*(\w+)/;
+	    $haveseen{$1}++;
 	    print;
 	}
     }
+
+#    print "mode:$mode / $_\n";
+    if ($mode eq 'control') {
+	if (/^\s*volt\s+(\w+)\s*(\d*)/) {
+	    print "EX  0  $tags{$1}  " . ($2 || 1) . "\n";
+	} elsif (/^\s*ground/) {
+	    print "GN 1 0 0 0    0 0 0 0 0 0\n";
+	} elsif (/^\s*freq(|ency)\s+([\.\d]+)[-\s]+([\.\d]+)\s*([\.\d]*)/) {
+	    my ($bogus, $start, $stop, $steps) = ($1, $2, $3, $4);
+	    $steps ||= 20;
+	    print "FR 0 $steps  0 0 $start   " . 
+	      (($stop - $start)/$steps) . "\n";
+	} elsif (/^\s*EN/) {
+	    $mode = 'end';
+	} else {
+	    /^\s*(\w+)/;
+	    $haveseen{$1}++;
+	    print;
+	}
+    }
+}
+
+if (!$haveseen{'RP'}) {
+    print "RP     0    19    73   1000  0  0.00000E+00  5.00000E+00  5.00000E+00  0.00000E+00  0.00000E+00\n";
+}
+
+if ($mode eq 'control') {
+    print "EN\n";
 }
 
 sub scale_dim {
