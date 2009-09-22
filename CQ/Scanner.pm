@@ -316,15 +316,6 @@ sub new {
    my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($configmenu, "&Config");
 
-   my $enableid = 4000;
-   my($menable) = Wx::Menu->new(undef, wxMENU_TEAROFF);
-   foreach my $channel (@main::toscan) {
-       $menable->Append($enableid, "$channel", "");
-       EVT_MENU($this, $enableid, sub {OnEnable($channel);});
-       $enableid++;
-   }
-   $mbar->Append($menable, "&Enable/Disable");
-
    my $groupid = 3500;
    my($mgroup) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    my($maddgroup) = Wx::Menu->new(undef, wxMENU_TEAROFF);
