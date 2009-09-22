@@ -6,7 +6,7 @@ use Data::Dumper;
 use IO::File;
 use DynaLoader;
 
-our $VERSION = "0.2";
+our $VERSION = "0.3";
 
 our %opts;
 our %defopts = (
