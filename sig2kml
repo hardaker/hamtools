@@ -7,7 +7,7 @@ use GeoDB;
 use GeoDB::Export::Map;
 use strict;
 
-our $VERSION = '0.5';
+our $VERSION = '0.4';
 
 my %opts =
   (
@@ -349,4 +349,129 @@ sub LocalOptionsMap {
     return @opts;
 }
 
+=pod
+
+=head1 NAME
+
+sig2kml - Map signal reports based on GPS track data
+
+=head1 SYNOPSIS
+
+# signalrecord ... > foo.xml
+
+[Transmit from a second radio while walking/biking/driving around with a GPS]
+
+# killall signalrecord
+
+# gpsbabel -t -i garmin -f usb: -o gpx -F foo.gpx
+
+# sig2kml ... -g foo.gpx -s foo.xml -l '38.000' -L '-121.000' --map foo.png
+
+=head1 REQUIREMENTS
+
+The script uses the GeoQO/GeoDB modules (http://www.geoqo.org/) for
+storing waypoints and pulling OpenStreetMap (OSM is at
+http://www.openstreetmap.org) map data.
+
+=head1 DESCRIPTION
+
+=head1 OPTIONS
+
+=head2 Input:
+
+=item  -g STRING
+
+=item  --gpx-file=STRING
+
+GPS track in GPX format
+
+=item  -s STRING
+
+=item  --signal-file=STRING
+
+signalrecord output file
+
+=item  -l STRING
+
+=item  --lat=STRING
+
+Recevier latitute
+
+=item  -L STRING
+
+=item  --lon=STRING
+
+Recevier longitude
+
+=head2 Output:
+
+=item  -p STRING
+
+=item  --prefix=STRING
+
+Use a common prefix for all the below
+
+=item  -o STRING
+
+=item  --output-file=STRING
+
+Output KML file for google earth.
+
+=item  --map=STRING
+
+Output map (png) file.  The map data pulled over the net from
+openstreetmap.org (OSM).
+
+=item  --map-size=STRING
+
+Output map size in OSM squares (default = 3)
+
+=item  -m STRING
+
+=item  --min-level=STRING
+
+Minimum signal level to report
+
+=item  -M STRING
+
+=item  --max-level=STRING
+
+Maximum signal level
+
+=item  --hue=STRING
+
+Hue Range (0..this)
+
+=head2 Debugging:
+
+=item  -d
+
+=item  --debug
+
+Debugging output
+
+=head2 HELP Options
+
+Help Options:
+   -h                    Display help options -- short flags preferred
+  --help                 Display help options -- long flags preferred
+  --help-full            Display all help options -- short and long
+  --gui                  Display a help GUI
+  --no-gui               Do not display the default help GUI
+
+=head1 SEE ALSO
+
+signalrecord(1), signalcount(1)
+
+=head1 COPYRIGHT and LICENSE
+
+Copyright 2009 Wes Hardaker.  All rights reserved.
+
+License: GPLv2
+
+=head1 AUTHOR
+
+Wes Hardaker < wes ATTA ws6z DT com >
+
 =cut
+

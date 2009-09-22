@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $VERSION = '0.5';
+our $VERSION = '0.4';
 
 # NEC info:
 # http://www.nec2.org/part_3/toc.html
@@ -186,4 +186,21 @@ sub scale_dim {
     return $len      	if ($unit eq 'm');
     die "don't know what unit $unit is\n";
 }
+
+=head1 NAME
+
+ezrnec - Create antennas using a much simpler file format
+
+=head1 SYNOPSIS
+
+
+=head1 DESCRIPTION
+
+B<ezrnec> is designed to greatly simplify describing antennas.  The
+I<NEC> modelling language is defined using a "card" format that is
+fairly strict in its structure and requires far too much user thinking
+as data is fed into it.  The B<ezrnec> input format is merely a
+simplier and more intuitive language to describe antennas in.  The language
+
+=cut
 

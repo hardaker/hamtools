@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $VERSION = '0.5';
+our $VERSION = '0.4';
 
 my $havehamlib = 
   eval {
@@ -178,4 +178,119 @@ sub LocalOptionsMap {
     return @opts;
 }
 
+=pod
+
+=head1 NAME
+
+signalrecord - record signal levels from a device with a CAT interface
+
+=head1 SYNOPSIS
+
+signalrecord ... > foo.xml
+
+=head1 DESCRIPTION
+
+I<signalrecord> performs one simple task: records various signals from
+a CAT controled device for later analysis.
+
+The output is in XML format and printed to stdout.  The output looks
+something like this:
+
+  <?xml version="1.0" encoding="utf-8"?>
+  <signals>
+    <signal frequency="155235000">
+      <record level="-54" secs="1220885498" usecs="368219"/>
+      <record level="-54" secs="1220885499" usecs="389415"/>
+      <record level="-54" secs="1220885500" usecs="400090"/>
+      <record level="-54" secs="1220885501" usecs="416175"/>
+    </signal>
+  </sinals>
+
+If the frequency changes, usually due to the -f flag specifying a
+range, then multiple <signal> tags will be present and the order will
+be based on when changes happen.
+
+Once the data has been recorded, you can use signalcount or sig2kml to
+generate bar-chart graphs or maps.
+
+=head1 USAGE
+
+=head1 OPTIONS
+
+=head2 Hamlib Controls (required):
+
+=item  -P STRING
+
+=item  --port=STRING
+
+Port to use (/dev/ttyS0)
+
+=item  -M STRING
+
+=item  --model=STRING
+
+Rig model (eg 122)
+
+=item  -S STRING
+
+=item  --speed=STRING
+
+serial speed (eg 38400)
+
+=head2 Output Controls:
+
+=item  -t STRING
+
+=item  --sleep-time=STRING
+
+Time between measurements (in second)
+
+=item  -e
+
+=item  --every-step
+
+Record every interval, not just on signal level changes
+
+=item  -m STRING
+
+=item  --min-level=STRING
+
+minimum level to record
+
+=item  -u STRING
+
+=item  --min-sleep=STRING
+
+minimum sleep between frequency changes
+
+=item  -f STRING
+
+=item  --freq-scan=STRING
+
+frequency-scan the specified X-Y-STEP range
+
+=head2 HELP Options
+
+Help Options:
+   -h                    Display help options -- short flags preferred
+  --help                 Display help options -- long flags preferred
+  --help-full            Display all help options -- short and long
+  --gui                  Display a help GUI
+  --no-gui               Do not display the default help GUI
+
+=head1 SEE ALSO
+
+signalcount(1), sig2kml(1)
+
+=head1 COPYRIGHT and LICENSE
+
+Copyright 2009 Wes Hardaker.  All rights reserved.
+
+License: GPLv2
+
+=head1 AUTHOR
+
+Wes Hardaker < wes ATTA ws6z DT com >
+
 =cut
+

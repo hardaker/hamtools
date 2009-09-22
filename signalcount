@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $VERSION = '0.5';
+our $VERSION = '0.4';
 
 use XML::Simple;
 use Data::Dumper;
@@ -85,3 +85,77 @@ sub LocalOptionsMap {
     push @opts,"h|help";
     return @opts;
 }
+
+=pod
+
+=head1 NAME
+
+signalcount - count signals recorded in the output from signalrecord
+
+=head1 SYNOPSIS
+
+# signalrecord ... -f 147.000-148.000-.015 > foo.xml
+
+[time passes while it records stuff]
+
+# killall signalrecord
+
+# signalcount -m -30 -f 147.000-148.000-.015 foo.xml > foo.dat
+
+# gnuplot
+...
+gdb> plot "foo.dat" with boxes;
+
+=head1 DESCRIPTION
+
+Ever wonder what simplex HAM frequencies are used in your area?  Run
+signalrecord for a given frencency range and use this to count which
+frequencies are the most popular.
+
+The primary reason for this app is simply to count how frequently
+certain frequencies are in use based on a minimum signal level.  You
+can pass it the output of the signalrecord program and it will produce
+a data file suitable for reading with gnuplot.
+
+=item  -m STRING
+
+=item  --min-level=STRING
+
+Minimum signal level to accept (default = -30)
+
+=item  -f STRING
+
+=item  --frequency-range=STRING
+
+Output Frequency Range (begin-end-step)
+
+(if not specified, signalcount will just output the frequencies from
+the file.  Use this option to specify a more constant output so that 0
+counts will be listed as well which makes the bar-graph produced by
+gnuplot much more consistent.
+
+=head2 HELP Options
+
+Help Options:
+   -h                    Display help options -- short flags preferred
+  --help                 Display help options -- long flags preferred
+  --help-full            Display all help options -- short and long
+  --gui                  Display a help GUI
+  --no-gui               Do not display the default help GUI
+
+=head1 SEE ALSO
+
+signalrecord(1), signalcount(1)
+
+=head1 COPYRIGHT and LICENSE
+
+Copyright 2009 Wes Hardaker.  All rights reserved.
+
+License: GPLv2
+
+=head1 AUTHOR
+
+Wes Hardaker < wes ATTA ws6z DT com >
+
+=cut
+
