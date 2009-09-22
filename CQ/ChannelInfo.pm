@@ -45,6 +45,7 @@ sub new {
     add_info("Frequency:", $main::config{$channel}{'frequency'});
 
     foreach my $key (sort keys(%{$main::config{$channel}})) {
+	next if (ref($main::config{$channel}{$key}) ne '');
 	add_info($key, $main::config{$channel}{$key});
     }
 
