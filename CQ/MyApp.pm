@@ -1,11 +1,11 @@
-package MyApp;
+package CQ::App;
 
 use Wx qw(:everything);
 use Wx::Event qw(EVT_MENU);
 use Wx::App;
 our @ISA=qw(Wx::App);
-use CQScanner;
-use CQSpectrum;
+use CQ::Scanner;
+use CQ::Spectrum;
 
 our $type = 'blah';
 
@@ -13,9 +13,9 @@ sub OnInit {
    my $this = @_;
    my $frame;
    if ($type) {
-       $frame = CQScanner->new("Scanner",  [-1,-1], [-1,-1]);
+       $frame = CQ::Scanner->new("Scanner",  [-1,-1], [-1,-1]);
    } else {
-       $frame = CQSpectrum->new( "Spectrum Plot", [-1,-1], [-1,-1]);
+       $frame = CQ::Spectrum->new( "Spectrum Plot", [-1,-1], [-1,-1]);
    }
    #my $this->{FRAME}=$frame;
    unless ($frame) {
