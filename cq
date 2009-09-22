@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 
 use Hamlib;
-use Getopt::GUI::Long;
 use strict;
 use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Data::Dumper;
@@ -54,7 +53,7 @@ our %modes =
 # read the command line options (and provide help output)
 #
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
-GetOptions(\%opts,
+LocalGetOptions(\%opts,
 	   ["GUI:separator",     "Scanning Options:"],
 	   ["s|start-frequency=s", "Starting Frequency"],
 	   ["e|end-frequency=s",   "Ending Frequency"],
@@ -526,6 +525,43 @@ sub Die {
 
 sub Verbose {
     print STDERR @_ if ($opts{'v'});
+}
+
+#######################################################################
+# Getopt::GUI::Long portability wrapper
+#
+sub LocalGetOptions {
+    if (eval {require Getopt::GUI::Long;}) {
+	import Getopt::GUI::Long;
+	# optional configure call
+	Getopt::GUI::Long::Configure(qw(display_help no_ignore_case
+					capture_output));
+	return GetOptions(@_);
+    }
+    require Getopt::Long;
+    import Getopt::Long;
+    # optional configure call
+    Getopt::Long::Configure(qw(auto_help no_ignore_case));
+    my $ret = GetOptions(LocalOptionsMap(@_));
+    if ($opts{'h'}) {
+	print STDERR "You need to install the perl Getopt::GUI::Long perl module to get help output;\n";
+	exit 1;
+    }
+    return $ret;
+}
+
+sub LocalOptionsMap {
+    my ($st, $cb, @opts) = ((ref($_[0]) eq 'HASH')
+			    ? (1, 1, $_[0]) : (0, 2));
+    for (my $i = $st; $i <= $#_; $i += $cb) {
+	if ($_[$i]) {
+	    next if (ref($_[$i]) eq 'ARRAY' && $_[$i][0] =~ /^GUI:/);
+	    push @opts, ((ref($_[$i]) eq 'ARRAY') ? $_[$i][0] : $_[$i]);
+	    push @opts, $_[$i+1] if ($cb == 2);
+	}
+    }
+    push @opts,"h|help";
+    return @opts;
 }
 
 =cut
