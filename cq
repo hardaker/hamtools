@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 
-use Hamlib;
 use strict;
 use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Data::Dumper;
 use IO::File;
+use DynaLoader;
 
-our $VERSION = "0.1";
+our $VERSION = "0.2";
 
 my %opts = (
 	    s => '14.150',
@@ -21,6 +21,23 @@ my %opts = (
 	    time => 10,
 	    hangtime => 3,
 	   );
+
+#
+# ensure they have the Hamlib perl module
+#
+my $temp_dir = ( $ENV{TEMP} || $ENV{TMP} || $ENV{WINDIR} || '/tmp' ) . "/p2xtmp-$$";
+chdir($temp_dir);
+my $havehamlib = 
+  eval {
+#       push @INC, "$temp_dir";
+#       push @DynaLoader::dl_library_path, "$temp_dir";
+#       $ENV{'LD_RUN_PATH'} = "$temp_dir";
+      require Hamlib;
+  };
+Die("You need to intsall the Hamlib perl module before continuing ($@)")
+  if (!$havehamlib);
+
+import Hamlib;
 
 #
 # global variables we'll need (ewwwwww)
@@ -301,7 +318,9 @@ if ($opts{'w'}) {
 sub set_channel {
     my ($channel) = @_;
     die "no channel to switch to" if (!$channel);
-    $rig->set_freq($config{$channel}{'frequency'} * 1000000);
+    my $freq = $config{$channel}{'currentfrequency'}
+      || $config{$channel}{'frequency'};
+    $rig->set_freq($freq * 1000000);
     $rig->set_ctcss_tone($config{$channel}{'tone'} * 10)
       if ($config{$channel}{'tone'});
     $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
@@ -872,3 +891,37 @@ Licensed under GPLv2
 #Probably don't need these technically?
 #perl2exe_include bytes
 #perl2exe_include attributes
+#perl2exe_bundle "/usr/lib/perl5/site_perl/5.10.0/i386-linux-thread-multi/auto/Hamlib/Hamlib.so"
+#perl2exe_bundle "/usr/lib/libhamlib.so.2"
+#perl2exe_bundle "/usr/lib/hamlib-yaesu.so"
+#perl2exe_bundle "/usr/lib/hamlib-dummy.so"
+#perl2exe_bundle "/usr/lib/libusb-0.1.so.4"
+#perl2exe_bundle "/usr/lib/hamlib-alinco.so"
+#perl2exe_bundle "/usr/lib/hamlib-aor.so"
+#perl2exe_bundle "/usr/lib/hamlib-drake.so"
+#perl2exe_bundle "/usr/lib/hamlib-dummy.so"
+#perl2exe_bundle "/usr/lib/hamlib-easycomm.so"
+#perl2exe_bundle "/usr/lib/hamlib-flexradio.so"
+#perl2exe_bundle "/usr/lib/hamlib-fodtrack.so"
+#perl2exe_bundle "/usr/lib/hamlib-icom.so"
+#perl2exe_bundle "/usr/lib/hamlib-jrc.so"
+#perl2exe_bundle "/usr/lib/hamlib-kachina.so"
+#perl2exe_bundle "/usr/lib/hamlib-kenwood.so"
+#perl2exe_bundle "/usr/lib/hamlib-kit.so"
+#perl2exe_bundle "/usr/lib/hamlib-lowe.so"
+#perl2exe_bundle "/usr/lib/hamlib-microtune.so"
+#perl2exe_bundle "/usr/lib/hamlib-pcr.so"
+#perl2exe_bundle "/usr/lib/hamlib-racal.so"
+#perl2exe_bundle "/usr/lib/hamlib-rft.so"
+#perl2exe_bundle "/usr/lib/hamlib-rotorez.so"
+#perl2exe_bundle "/usr/lib/hamlib-rpcrig.so"
+#perl2exe_bundle "/usr/lib/hamlib-rpcrot.so"
+#perl2exe_bundle "/usr/lib/hamlib-sartek.so"
+#perl2exe_bundle "/usr/lib/hamlib-skanti.so"
+#perl2exe_bundle "/usr/lib/hamlib-tapr.so"
+#perl2exe_bundle "/usr/lib/hamlib-tentec.so"
+#perl2exe_bundle "/usr/lib/hamlib-tuner.so"
+#perl2exe_bundle "/usr/lib/hamlib-uniden.so"
+#perl2exe_bundle "/usr/lib/hamlib-winradio.so"
+#perl2exe_bundle "/usr/lib/hamlib-wj.so"
+#perl2exe_bundle "/usr/lib/hamlib-yaesu.so"
