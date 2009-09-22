@@ -347,6 +347,14 @@ sub set_channel {
     my ($channel, $justbasics) = @_;
     die "no channel to switch to" if (!$channel);
     $channel = uc($channel);
+    $currentstart = time();
+
+    # mark the current channel as done history-wise
+    if ($currentchannel) {
+	$config{$currentchannel}{'history'}
+	  [$#{$config{$currentchannel}{'history'}}]
+	    [1] = $currentstart;
+    }
 
     # set the frequency
     my $freq = $config{$channel}{'currentfrequency'}
@@ -355,7 +363,9 @@ sub set_channel {
     $rig->set_mode($modes{$config{$channel}{'mode'}},0)
       if ($config{$channel}{'mode'});
     $currentchannel = $channel;
-    $currentstart = time();
+
+    # mark the new channel as beginning
+    push @{$config{$channel}{'history'}},[$currentstart];
 
     return if ($justbasics);
 
@@ -364,6 +374,22 @@ sub set_channel {
     $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
       if ($config{$channel}{'dcs'});
 }
+
+sub close_history {
+    my ($channel, $time) = shift;
+    return if (!$channel);
+    $time = time() if (!$time);
+
+    # ugh: fill in the closing history time if and only if
+    # the last history slot wasn't closed yet
+
+    $config{$channel}{'history'}
+      [$#{$config{$channel}{'history'}}]
+	[1] = $time
+	  if ($#{$config{$channel}{'history'}
+		 [$#{$config{$channel}{'history'}}]} == 0);
+}
+
 
 my $scancount = 0;
 sub next_scan {
@@ -410,6 +436,9 @@ sub next_scan {
 	    < $time) {
 	    Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
 			    $currentlivetime-$currentstart));
+
+	    close_history($currentchannel, $time);
+
 	    $currentchannel = '';
 	    $currentlivetime = 0;
 	    next;
@@ -491,6 +520,7 @@ sub next_scan {
 
 	# what to check next?
 
+	push @{$config{$next}{'history'}}, [$time];
 	# change the frequency and potentially the mode
 	$rig->set_freq($frequency * 1000000);
 	$rig->set_mode($modes{$config{$next}{'mode'}},0)
@@ -511,10 +541,13 @@ sub next_scan {
 	if ($newchan > $opts{'l'}) {
 	    # use the current frequency of the new channel
 	    # remember this one as the new "best"
+	    close_history($currentchannel, $time);
 	    push @pastchannels, $currentchannel if ($currentchannel);
 	    $currentchannel = $next;
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");
+	} else {
+	    close_history($next, $time+1);
 	}
 
 

@@ -2,6 +2,7 @@ package CQ::Scanner;
 
 use Wx qw(:everything :font :textctrl);
 use Wx::Event qw(EVT_MENU);
+use Data::Dumper;
 
 use vars qw(@ISA);
 use strict;
@@ -25,6 +26,61 @@ my $mainpanel;
 my $subpanel;
 my $grid;
 
+sub OnScanPlot {
+    Die("You need to install the GD module before you can create graphs")
+      if (! eval { require GD; });
+    use GD;
+
+    my $count = $#main::toscan + 1;
+
+    my $height = 20 * $count;
+    my $im = new GD::Image(640,$height);
+    my $fill = $im->colorAllocate(0,0,255);
+    my $white = $im->colorAllocate(255,255,255);
+    $im->fill(1,1,$white);
+
+    my $now = time();
+    my $startat = $now-300;
+    my $textwidth = 100;
+
+    my @sorted = 
+      sort { $main::config{$a}{'priority'} <=> $main::config{$b}{'priority'} }
+	@main::toscan;
+
+    for (my $i = 0; $i < $count; $i++) {
+	my $channel = $sorted[$i];
+	my $starty = $i * 20 + 5;
+	my $endy = ($i+1)*20 - 5;
+
+	$im->string(gdSmallFont, 2, $starty, $channel, $fill);
+	
+	foreach my $slot (@{$main::config{$channel}{'history'}}) {
+	    if ($slot->[0] >= $startat) {
+		$im->filledRectangle($slot->[0]           - $startat, $starty,
+				     ($slot->[1] || $now) - $startat, $endy,
+				     $fill);
+	    }
+	}
+
+    }
+
+	#return $im;
+    open(G,">/tmp/cqb.png");
+    binmode G;
+    print G $im->png;
+    close(G);
+
+    use CQ::ShowImage;
+    my ($channel) = @_;
+    my $frame = CQ::ShowImage->new("/tmp/cqb.png", "Scanner Timing",
+				   [-1,-1], [-1,-1]);
+    unless ($frame) {
+	print "unable to create scanning frame -- exiting."; 
+	exit(1);
+    }
+    $frame->Show( 1 );
+    1;
+}
 
 sub OnInfo {
     use CQ::ChannelInfo;
@@ -167,8 +223,9 @@ sub new {
    #
    # MENU setup
    #
-   my($MENU_QUIT, $MENU_GRID) = (3000..3999);
+   my($MENU_QUIT, $MENU_GRID, $MENU_USAGE) = (3000..3999);
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   $mfile->Append($MENU_USAGE, "&Graph Usage\tCtrl-G", "Graph the usage of the scanner");
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
 #   $mfile->AppendSeparator();
 
@@ -176,6 +233,7 @@ sub new {
    $mbar->Append($mfile, "&Commands");
    $this->SetMenuBar($mbar);
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
+   EVT_MENU($this, $MENU_USAGE, \&OnScanPlot);
 
    my $enableid = 4000;
    my($menable) = Wx::Menu->new(undef, wxMENU_TEAROFF);
