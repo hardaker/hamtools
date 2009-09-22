@@ -221,7 +221,6 @@ if ($opts{'load'}) {
 	    }
 
 	    # what to check next?
-	    Verbose(sprintf("  checking %-12s (pri=%-4d at $frequency)\n", $next, $config{$next}{'priority'}));
 
 	    # change the frequency and potentially the mode
 	    $rig->set_freq($frequency * 1000000);
@@ -232,6 +231,8 @@ if ($opts{'load'}) {
 
 	    # test for the new level
 	    my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
+
+	    Verbose(sprintf("  checked %-12s (pri=%-4d at %-8f):  %d\n", $next, $config{$next}{'priority'}, $frequency, $newchan));
 
 	    # XXX: minimum timeout for falling back somehow?
 
@@ -484,12 +485,16 @@ sub read_config {
 	    my $groupname = $1;
 	    my $groups = $2;
 	    push @{$groups{uc($groupname)}}, split(/,\s*/, uc($groups));
-	} elsif (/^\s*(\w+):\s*([^,]+),*(.*)/) {
+	} elsif (/^\s*(\w+)\s*:\s*([^,]*),*(.*)/) {
 	    my $parts;
-	    %$parts = %defaults;
 	    my $name = uc($1);
-	    $config{$name} = $parts;
-	    $parts->{'frequency'} = $2;
+	    if (exists($config{$name})) {
+		$parts = $config{$name};
+	    } else {
+		%$parts = %defaults;
+		$config{$name} = $parts;
+	    }
+	    $parts->{'frequency'} = $2 if ($2);
 	    foreach my $data (split(/,\s*/,$3)) {
 		my ($left, $right) = split(/\s*=\s*/, $data);
 		$parts->{$left} = $right;
