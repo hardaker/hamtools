@@ -545,11 +545,78 @@ for generating a histogram.
 
   Install Getopt::GUI::Long for extend command line help.
 
+=head1 COMMAND LINE OPTIONS
+
+The command line options can also be specified in the ~/.cqrc file.
+See below for details on doing this.
+
+=over
+
+=item -scan SCANITEM1, SCANITEM2, ...
+
+Scans the various channels or groups for traffic based on the channel
+settings.
+
+=item -w
+
+Brings up a cute little window (requires the Wx perl module) which
+allows you to force-lock to certain channels, switch scanning groups,
+enable/disable channels, etc.
+
+=item --test
+
+Tests how long it takes before your rig can report a non-zero signal
+level.  Generally after changing frequecies the rig will need a
+fraction of a second to tune to the new channel.  You should run this
+test (defaults to 14.XXX frequencies for testing) to see how long it
+believes the rig needs.  Then use the resulting calculated value with
+the -u flag.
+
+=item -u
+
+How long to wait after switching to a channel before believing the
+report s-meter value.  .1 is probably a safe setting for most rigs.
+Faster means faster scanning or less pauses.
+
+=item -P PORT
+
+The tty port to use.
+
+=item -M MODEL
+
+The Hamlib rig model to use (see the hamlib documents for details on
+what number to use with this flag).
+
+=item -S SPEED
+
+The serial port speed to use.  Make sure the rig is set to the same speed.
+
+=item -c FILE
+
+The config file to read.  By default this is $HOME/.cqrc
+
+=item -v
+
+Verbose mode: it prints details about it's current scanning activity.
+
+=item --hangtime SECONDS
+
+The amonut of time after locking to a new channel to leave the scanner
+there even when the channel goes idle.  Defaults to 3 seconds (meaning
+it'll wait 3 seconds before falling back to lower-priority channels).
+
+=item -l LEVEL
+
+The minimum S-meter level to use when looking for active channels.
+Defaults to -12.
+
+=back
+
 =head1 CONFIG FILE
 
 $HOME/.cqrc can contain the following definition lines:
 
-=head2 INCLUDE
+=head2 INCLUDING OTHER FILES
 
 To include another file, use:
 
@@ -564,15 +631,19 @@ Lines that define channels look like:
 Which specifies the frequency to check, how often to check it and it's
 priority level.
 
-=head3 Range lines
-
-Ranges are also allowed:
+Ranges are also allowed (though not as tested or documented).
 
   20mSSB: 14.150-14.350,interval=.01
 
 =head3 Channel and Range Tokens
 
 =over
+
+=item mode
+
+The mode to switch the rig to (FM, AM, USB, LSB, CW, ...).  If not set
+cq will not change it, which is probably bad unless all the channels
+are of the same type.
 
 =item checkevery
 
@@ -591,6 +662,8 @@ other defined channels).
 
 =item interval
 
+Used for scanning...  Must. Write. Docs.
+
 =item tone
 
 The CTCS tone that the rig should be set to when the channel is locked
@@ -598,7 +671,8 @@ onto (e.g. "123.0").
 
 =item dcs
 
-(only used for ranges)
+The DCS code that the rig should be set to when the channel is locked
+onto (e.g. "123.0").
 
 =item enabled
 
@@ -606,7 +680,9 @@ Generally this isn't needed, but if set to I<false> it won't be used.
 
 =item hangtime
 
-The amount of time the channel should stay locked to after it goes silent.
+The amount of time the channel should stay locked to after it goes
+silent.  See the --hangtime option too (per-channel settings override
+the command line).
 
 =back
 
@@ -626,9 +702,77 @@ If you have some perl modules in a non-standard directory:
 
   libs /path/to/the/dir/theyre/in 
 
-=head1 DESCRIPTION
+=head1 EXAMPLE CONFIG FILE
 
+  #
+  # Default command line flags
+  #
+  option	    S 38400
+  option      u .8
 
+  #
+  # default channel options
+  #
+  default: mode=FM
+  default: priority=10
+  default: checkevery=10
+  default: hangtime=5
+
+  #
+  # Repeaters
+  #
+  repeater1   : 147.000,tone=100,priority=20
+  repeater2   : 147.195,tone=123
+
+  group repeaters: repeater1, repeater2
+
+  #
+  # Simplex Channels
+  #
+  2MFMCall    : 146.52
+  Geocache    : 147.555
+  SSBFun      : 144.200,mode=USB
+
+  group simplex: 2MFMCall, Geocache, SSBFun
+
+  #
+  # A few FRS Frequencies
+  #
+  default: priority=2
+  FRS1  :462.625
+  FRS2  :462.875
+  FRS3  :462.125
+
+  group FRS:  FRS1, FRS2, FRS3
+
+  #
+  # FM Radio Stations
+  #
+  # my favorite radio channel
+  KXJZ: 90.9
+
+  #
+  # Combining a few groups
+  #
+
+  # combine the simplex and repeater groups
+  group daily: simplex, repeaters
+
+  # add in a radio station to always fall back on
+  group alwayson: daily, KXJZ
+
+=head1 AUTHOR
+
+Wes Hardaker AKA WS6Z < wes ATAT ws6z DOT com >
+
+=head1 License
+
+Copyright 2008 Wes Hardaker
+All rights reserved
+
+Licensed under GPLv2
+
+=cut
 
 =cut
 
