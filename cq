@@ -792,7 +792,7 @@ sub call_hooks {
   return if (!exists($hooks{$hookname}));
   Verbose("calling all hooks for $hookname\n");
   foreach my $hook (@{$hooks{$hookname}}) {
-      next if (ref(($hook->{'code'}) ne CODE));
+      next if (ref(($hook->{'code'}) ne 'CODE'));
       $hook->{'code'}->(@{$hook->{'arguments'}}, @otherarguments);
   }
 }
