@@ -9,9 +9,6 @@ use IO::File;
 
 our $VERSION = "0.1";
 
-use lib ('/home/hardaker/docs/ham/hamtools');
-use CQ::App;
-
 my %opts = (
 	    s => '14.150',
 	    e => '14.350',
@@ -171,6 +168,7 @@ if ($opts{'load'}) {
 	# open a window and start the scanner with it's own
 	# background timer.
 	
+	require CQ::App;
 	$CQ::App::type = 'scan';
 	my $app = CQ::App->new(); # create
 	$app->MainLoop();	# go
@@ -270,6 +268,7 @@ sub create_freq_graph {
 # Wx widget support
 #
 if ($opts{'w'}) {
+    require CQ::App;
     my $app = CQ::App->new();	# create
     $app->MainLoop();		# go
 }
@@ -452,6 +451,8 @@ sub read_config {
 	    }
 	} elsif (/^\s*include\s+(.*)/) {
 	    read_config($1, \%defaults);
+	} elsif (/^\s*libs\s+(.*)/) {
+	    push @INC, $1;
 	} elsif (/^\s*option\s+(\S*)\s+(.*)/) {
 	    $opts{$1} = $2 if (!exists($opts{$1}));
 	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
@@ -588,6 +589,12 @@ the short-anme options (cq -h output) if they exist.  As an example:
 
 Sets the default '-m' flag option to 122 (ie, set thes hamlib rig
 model to 122 which is a Yaesu 857).
+
+=head2 LIBRARY PATH
+
+If you have some perl modules in a non-standard directory:
+
+  libpath /path/to/the/dir/theyre/in 
 
 =head1 DESCRIPTION
 
