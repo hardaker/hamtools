@@ -1,0 +1,152 @@
+#!/usr/bin/perl
+
+# NEC info:
+# http://www.nec2.org/part_3/toc.html
+
+my $mode = 'comments';
+
+my %defines;
+my %configs = (
+	       segments => 20,
+	       radius => 0.3048,
+	      );;
+my %tags;
+my %coords;
+
+use strict;
+
+my $tagnum;
+my $lastcoord;
+
+while(<>) {
+    next if (/^#/);
+
+    #
+    # generic top level things we allow
+    #
+
+    # define WORD DEFINITION
+    #   or
+    # define WORD {
+    #   ...
+    # }
+    if (/^\s*define\s+(\w+)\s+(.*)/) {
+	my ($word, $value) = ($1, $2);
+
+	if ($value eq '{') {
+	    # XXX: use @define foo {
+	    # ...
+	    # }
+	    while (<>) {
+		if (/^\s*}\s*$/) {
+		    chomp($defines{$word});
+		    last;
+		}
+		$defines{$word} .= $_;
+	    }
+	} else {
+	    chomp($value);
+	    $defines{$word} = $value;
+	}
+
+	next;
+    }
+
+    # config TOKEN VALUE
+    if (/^\s*config\s+\(\w\)\s+(.*)/) {
+	$configs{$1} .= $2;
+	next;
+    }
+
+    # delete leading whitespace
+    s/^\s+//;
+
+    # beginning comments (CM -> CE)
+    if ($mode eq 'comments' && !/^(CM|CE)/) {
+	$mode = 'geometry';
+	print "CM Output created by ezrnec\n";
+	print "CE http://www.hamtools.org/\n";
+    } elsif ($mode eq 'comments' && /^CE/) {
+	print;
+	next;
+    }
+
+    # invoke any defines and specials
+    while (1) {
+	#	    print "begin: $_\n";
+
+	# definitions
+	next if s/\@{(\w+)}/$defines{$1} || $tags{$1} || die("no such define or tag: '$1'")/e;
+
+	# math
+	next if s/\${([^\}]+)}/eval "$1"/e;
+
+	# scaled by feet, cm, etc
+	next if s/([-\d\.]+)(ft|m|cm|mm)/scale_dim($1, $2)/e;
+
+	#	    print "final: $_\n";
+	# nothing left
+	last;
+    }
+
+    if (/^\s*output(.*)/) {
+	print STDERR $1,"\n";
+	next;
+    }
+
+    # geometry section
+    if ($mode eq 'geometry' && /^GE/) {
+	$mode eq 'excite';
+	print;
+    } elsif ($mode eq 'geometry') {
+	# process geometry tokens
+
+	# wire definitions
+	if (/^\s*(wire|cont)\s+(.*)/) {
+	    my $line = $2;
+	    my %params = %configs;
+	    while ($line =~ s/^(\w+)=(\w+)\s+//) {
+		$params{$1} = $2;
+	    }
+
+	    $tagnum++;
+
+	    # memorize a tag if needed
+	    if ($params{'tag'}) {
+		$tags{$params{'tag'}} = $tagnum;
+	    }
+
+	    # remove commas
+	    $line =~ s/,/ /g;
+
+	    my $continfo;
+	    if (/^cont/) {
+		my $coordtouse = $lastcoord;
+		$coordtouse = $coords{$params{'from'}} if ($params{'from'});
+		$line = $coordtouse . " " . $line;
+	    }
+
+	    # rememeber the last coordinate
+	    ($lastcoord) = ($line =~ /([-\.\d]+\s+[-\.\d]+\s+[-\.\d]+)$/);
+#	    print "last coord:  $lastcoord\n";
+	    if ($params{'tag'}) {
+		$coords{$params{'tag'}} = $lastcoord;
+	    }
+
+            # XXX: proper printf for spacing
+	    print "GW $tagnum $params{'segments'} $line $params{'radius'}\n";
+	} else {
+	    print;
+	}
+    }
+}
+
+sub scale_dim {
+    my ($len, $unit) = @_;
+    return $len * .3048 if ($unit eq 'ft');
+    return $len/100  	if ($unit eq 'cm');
+    return $len/1000 	if ($unit eq 'mm');
+    return $len      	if ($unit eq 'm');
+    die "don't know what unit $unit is\n";
+}
+
