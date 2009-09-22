@@ -13,9 +13,9 @@ sub OnInit {
    my $this = @_;
    my $frame;
    if ($type) {
-       $frame = CQ::Scanner->new("Scanner",  [-1,-1], [-1,-1]);
+       $frame = CQ::Scanner->new("CQ: Scanner",  [-1,-1], [-1,-1]);
    } else {
-       $frame = CQ::Spectrum->new( "Spectrum Plot", [-1,-1], [-1,-1]);
+       $frame = CQ::Spectrum->new( "CQ: Spectrum Plot", [-1,-1], [-1,-1]);
    }
    #my $this->{FRAME}=$frame;
    unless ($frame) {
