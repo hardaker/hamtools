@@ -7,8 +7,10 @@ use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Data::Dumper;
 use IO::File;
 
+our $VERSION = "0.1";
+
 use lib ('/home/hardaker/docs/ham/hamtools');
-use MyApp;
+use CQ::App;
 
 my %opts = (
 	    P => '/dev/ttyS0',
@@ -162,8 +164,8 @@ if ($opts{'load'}) {
 	# open a window and start the scanner with it's own
 	# background timer.
 	
-	$MyApp::type = 'scan';
-	my $app = MyApp->new(); # create
+	$CQ::App::type = 'scan';
+	my $app = CQ::App->new(); # create
 	$app->MainLoop();	# go
     } else {
 	while (1) {
@@ -261,7 +263,7 @@ sub create_freq_graph {
 # Wx widget support
 #
 if ($opts{'w'}) {
-    my $app = MyApp->new();	# create
+    my $app = CQ::App->new();	# create
     $app->MainLoop();		# go
 }
 
@@ -495,6 +497,8 @@ for generating a histogram.
 =head1 USAGE
 
   cq -scan repeatername1,repeatername2,simplexname1,...
+
+  Install Getopt::GUI::Long for extend command line help.
 
 =head1 CONFIG FILE
 
