@@ -14,9 +14,12 @@ my %opts = (
 	    s => '14.150',
 	    e => '14.350',
 	    i => '.0001',
-	    u => '50000',
+	    u => '.1',
 	    samples => '1',
 	    c => ($ENV{'HOME'} . "/.cqrc"),
+	    l => -12,
+
+	    time => 10,
 	   );
 
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
@@ -32,6 +35,7 @@ GetOptions(\%opts,
            ["load=s",              "load state from file; don't rescan"],
 
 	   ["scan=s",              "Scan this definition set"],
+	   ["u|usleep=s",          "time between sleeps"],
 
 	   ["GUI:separator",   "Hamlib Controls:"],
 	   ["P|port=s",        "Port to use (/dev/ttyS0)"],
@@ -41,7 +45,8 @@ GetOptions(\%opts,
 	   ["GUI:separator",   "Setup options:"],
 	   ["c|config",        "Config file to load"],
 	   ["test",            "Test retunning speed of the receiver"],
-	   ["test-freqs=s",      "Set the starting and various frequencies to jump to"],
+	   ["test-freqs=s",    "Set the starting and various frequencies to jump to"],
+	   ["v|verbose",       "Verbose mode"],
 
 	   ["GUI:separator",   "Output Controls:"],
 	   ["g|gnuplot=s",     "gnuplot data file"],
@@ -81,15 +86,15 @@ if ($opts{'test'}) {
     my $max = 0;
     foreach my $delta (@jumpvalues) {
 	my $value = 0;
-	print "setting to $startfreq\n";
+	Verbose("setting to $startfreq\n");
 	$rig->set_freq($startfreq * 1000000);
 	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
-	print "  immediate value: $value\n";
+	Verbose("  immediate value: $value\n");
 	usleep(.5 * 1000000);
 	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
-	print "  initial value: $value\n";
+	Verbose("  initial value: $value\n");
 	$value = 0;
-	print "  setting to " . ($startfreq+$delta) . "\n";
+	Verbose("  setting to " . ($startfreq+$delta) . "\n");
 	$rig->set_freq(($startfreq+$delta) * 1000000);
 	my $count = 0;
 	$value = -54;
@@ -101,12 +106,12 @@ if ($opts{'test'}) {
 	    $count++;
 	    usleep(.00005 * 1000000);
 	}
-	print "  final value: $value (was $value; $count polls to change)\n";
+	Verbose("  final value: $value (was $value; $count polls to change)\n");
 	my $diff = tv_interval($startedat, [gettimeofday]);
-	print "  $delta change => $diff\n";
+	Verbose("  $delta change => $diff\n");
 	$max = ($max > $diff) ? $max : $diff;
     }
-    printf("\nRecommended -i setting: %f (which is 5 * $max)\n",$max*5);
+    printf("\nRecommended -u setting: %f (which is 5 * $max)\n",$max*5);
 
     exit;
 }
@@ -114,6 +119,91 @@ if ($opts{'test'}) {
 if ($opts{'load'}) {
     my $var = do "$opts{'load'}";
     %data = %$var;
+} elsif ($opts{'scan'}) {
+    my $currentchannel;
+
+    while (1) {
+
+	# see if current is active
+	my $currentlevel;
+	$currentlevel = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH)
+	  if ($currentchannel);
+	
+	# decide what to search next
+	my $time = time();
+	my $next = "";
+
+	# find the next channel to look for.
+	foreach my $key (keys(%config)) {
+
+	    # if it has been long enough based on config, check it
+	    if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
+
+		# if disabled, forget it
+		next if ($config{$key}{'enabled'} eq 'false');
+
+		# if the current channel is active and is a higher
+		# priority, then skip this one.
+		next if ($currentchannel &&
+			 $currentlevel > $opts{'l'} && 
+			 $config{$key}{'priority'} <=
+			 $config{$currentchannel}{'priority'});
+		
+		# ok, then we should definitely search it.  But we
+		# need to pick the best one, so see if we have another
+		# one that needs to be checked first.
+		# XXX: optionally use priorities instead of time for sorting?
+		if (!$next) {
+		    $next = $key;
+		} elsif ($config{$next}{'lastchecked'}
+			 + ($config{$next}{'checkevery'} || $opts{'time'}) >
+			 $config{$key}{'lastchecked'}
+			 + ($config{$key}{'checkevery'} || $opts{'time'})) {
+		    $next = $key;
+		}
+	    }
+	}
+
+	# now that we've found one to check...
+	if ($next) {
+	    # what to check next?
+	    Verbose("  checking $next $config{$next}{'priority'} => $config{$next}{'frequency'}\n");
+
+	    # change the frequency and potentially the mode
+	    $rig->set_freq($config{$next}{'frequency'} * 1000000);
+	    # XXX: mode
+
+	    # sleep the scan time length
+	    usleep($opts{'u'} * 1000000);
+
+	    # test for the new level
+	    my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
+
+	    Verbose("  -> $newchan ($opts{l})\n  $config{$next}{'priority'} >= $config{$currentchannel}{'priority'}\n");
+
+	    # XXX: minimum timeout for falling back somehow?
+
+	    # if the new level is better, we'll use it (because the
+	    # priority is already higher).
+	    if ($newchan > $opts{'l'}) {
+		# use the current frequency of the new channel
+		# remember this one as the new "best"
+		$currentchannel = $next;
+	    } else {
+		# fall back to the previous lower priority channel
+
+		$rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
+	    }
+
+	    Verbose("current: $currentchannel\n");
+
+	    # remember the last time we checked this new channel
+	    $config{$next}{'lastchecked'} = time();
+	}
+
+	# XXX: configurable sleep needed.
+	sleep(1);
+    }
 } else {
     for (my $freq = $opts{'s'}; $freq <= $opts{'e'}; $freq += $opts{'i'}) {
 	$rig->set_freq($freq * 1000000);
@@ -121,7 +211,7 @@ if ($opts{'load'}) {
 	my $value;
 	my $count = 0;
 	while ($count < $opts{'samples'}) {
-	    usleep($opts{'u'});
+	    usleep($opts{'u'} * 1000000);
 	    $value += $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
 	    $count++;
 	}
@@ -142,21 +232,21 @@ my $leveltobeat = $opts{'l'} || $data{$sortedbylevel[int($#sortedbylevel/2)]};
 my $ingood = 0;
 my $startgood = 0;
 my $level;
-print "finding signals above:  $leveltobeat\n";
+Verbose("finding signals above:  $leveltobeat\n");
 for (my $i = 0; $i < $#keys; $i++) {
     if (!$ingood && $data{$keys[$i]} > $leveltobeat) {
 	# starting a signal
 	$ingood = 1;
-	print "good starting at: $keys[$i]\n";
+	Verbose("good starting at: $keys[$i]\n");
 	$startgood = $keys[$i];
 	$level = $data{$keys[$i]};
     } elsif ($ingood && $data{$keys[$i]} <= $leveltobeat) {
 	# falling out
 	$ingood = 0;
-	print "	    end: $keys[$i]\n";
+	Verbose("	    end: $keys[$i]\n");
 	printf ("	   diff: %-4.4f\n", ($keys[$i] - $startgood));
-        print "   level: $level\n";
-	print "	 center: " . ($startgood + ($keys[$i] - $startgood)/2) . "\n";
+        Verbose("   level: $level\n");
+	Verbose("	 center: " . ($startgood + ($keys[$i] - $startgood)/2) . "\n");
     } elsif ($ingood) {
 	$level = $data{$keys[$i]} if ($level < $data{$keys[$i]});
     }
@@ -345,4 +435,8 @@ sub read_config {
 
 sub Error {
     print STDERR @_,"\n";
+}
+
+sub Verbose {
+    print STDERR @_,"\n" if ($opts{'v'});
 }
