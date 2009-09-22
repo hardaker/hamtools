@@ -1,0 +1,145 @@
+#!/usr/bin/perl
+
+use Hamlib;
+use Getopt::GUI::Long;
+use strict;
+use Time::HiRes qw(usleep gettimeofday tv_interval);
+use Data::Dumper;
+
+my %opts = (
+	    P => '/dev/ttyS0',
+	    M => '122',
+	    S => '38400',
+
+	    s => '14.150',
+	    e => '14.350',
+	    i => '.0001',
+	    u => '50000',
+	    samples => '1',
+	   );
+Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
+GetOptions(\%opts,
+	   ["GUI:separator",     "Scanning Options:"],
+	   ["s|start-frequency=s", "Starting Frequency"],
+	   ["e|end-frequency=s",   "Ending Frequency"],
+	   ["i|sample-interval=s", "Steps between frequencies"],
+	   ["samples=s",           "Samples to take"],
+	   ["l|minimum-level=s",   "Minimum signal level to be reported"],
+
+	   ["state=s",             "store state in file\n"],
+           ["load=s",              "load state from file; don't rescan\n"],
+
+	   ["GUI:separator",   "Hamlib Controls:"],
+	   ["P|port=s",        "Port to use (/dev/ttyS0)"],
+	   ["M|model=s",         "Rig model (122)"],
+	   ["S|speed=s",       "serial speed"],
+
+	   ["GUI:separator",   "Setup options:"],
+	   ["test",            "Test retunning speed of the receiver"],
+
+	   ["GUI:separator",   "Output Controls:"],
+	   ["g|gnuplot=s",     "gnuplot data file"],
+
+	   ["nogui", "Don't show the gui"],
+	  );
+
+$| = 1;
+
+Hamlib::rig_set_debug(1);
+my $rig = new Hamlib::Rig($opts{'M'});
+$rig->set_conf("rig_pathname", $opts{'P'});
+$rig->set_conf("serial_speed",$opts{'S'});
+$rig->open();
+my $freq = $rig->get_freq();
+my %data;
+
+#$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
+#$rig->set_freq($opts{'s'} * 1000000);
+
+if ($opts{'test'}) {
+    $rig->set_freq(14.250 * 1000000);
+
+    my $max = 0;
+    foreach my $delta (qw( .001 .00001 .25)) {
+	my $value = 0;
+	print "setting to 14.250\n";
+	$rig->set_freq(14.250 * 1000000);
+	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	print "immediate value: $value\n";
+	usleep(.5 * 1000000);
+	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	print "initial value: $value\n";
+	$value = 0;
+	print "setting to " . (14.250+$delta) . "\n";
+	$rig->set_freq((14.250+$delta) * 1000000);
+	my $startedat = [gettimeofday];
+	while ($value < -32) {  # kinda arbitrary
+	    $value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	}
+	my $diff = tv_interval($startedat, [gettimeofday]);
+	print "$delta change => $diff\n";
+	$max = ($max > $diff) ? $max : $diff;
+    }
+    printf("\nRecommended -i setting: %f\n",$max*5);
+
+    exit;
+}
+
+if ($opts{'load'}) {
+    my $var = do "$opts{'load'}";
+    %data = %$var;
+} else {
+    for (my $freq = $opts{'s'}; $freq <= $opts{'e'}; $freq += $opts{'i'}) {
+	$rig->set_freq($freq * 1000000);
+
+	my $value;
+	my $count = 0;
+	while ($count < $opts{'samples'}) {
+	    usleep($opts{'u'});
+	    $value += $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	    $count++;
+	}
+	$data{$freq} = $value / $count;
+    }
+}
+
+    if ($opts{'state'}) {
+	open(O,">$opts{'state'}");
+	print O Dumper(\%data);
+	close(O);
+    }
+
+my @keys = sort keys(%data);
+my @sortedbylevel = sort { $data{$b} <=> $data{$a} } @keys;
+my $leveltobeat = $opts{'l'} || $data{$sortedbylevel[int($#sortedbylevel/2)]};
+
+my $ingood = 0;
+my $startgood = 0;
+my $level;
+print "finding signals above:  $leveltobeat\n";
+for (my $i = 0; $i < $#keys; $i++) {
+    if (!$ingood && $data{$keys[$i]} > $leveltobeat) {
+	# starting a signal
+	$ingood = 1;
+	print "good starting at: $keys[$i]\n";
+	$startgood = $keys[$i];
+	$level = $data{$keys[$i]};
+    } elsif ($ingood && $data{$keys[$i]} <= $leveltobeat) {
+	# falling out
+	$ingood = 0;
+	print "	    end: $keys[$i]\n";
+	printf ("	   diff: %-4.4f\n", ($keys[$i] - $startgood));
+        print "   level: $level\n";
+	print "	 center: " . ($startgood + ($keys[$i] - $startgood)/2) . "\n";
+    } elsif ($ingood) {
+	$level = $data{$keys[$i]} if ($level < $data{$keys[$i]});
+    }
+}
+
+if ($opts{'g'}) {
+    open(G, ">$opts{'g'}");
+    foreach my $key (sort @keys) {
+	print G "$key  $data{$key}\n";
+    }
+    close(G);
+}
