@@ -33,12 +33,14 @@ sub OnScanPlot {
 
     my $count = $#main::toscan + 1;
 
-    my $height = 20 * $count;
+    my $textheight = 40;
+    my $height = 20 * $count + $textheight;
     my $width = 640;
     my $im = new GD::Image(640,$height);
-    my $black = $im->colorAllocate(0,0,255);
+    my $black = $im->colorAllocate(0,0,0);
     my $fill = $im->colorAllocate(0,0,255);
     my $white = $im->colorAllocate(255,255,255);
+    my $grey = $im->colorAllocate(60,60,60);
     $im->fill(1,1,$white);
     my %colors =
       ('locked' => $im->colorAllocate(255,0,0),
@@ -53,6 +55,14 @@ sub OnScanPlot {
       sort { $main::config{$b}{'priority'} <=> $main::config{$a}{'priority'} }
 	@main::toscan;
 
+    $im->string(gdSmallFont, $textwidth/2, $height-$textheight/2,
+		"Minutes Ago:", $black);
+    for (my $i = 0; $i < $now-$startat; $i += 60) {
+	$im->string(gdSmallFont, $width - $i, $height-$textheight/2,
+		    $i/60, $black);
+	$im->line($width-$i, 0, $width-$i, $height-$textheight, $grey);
+    }
+
     for (my $i = 0; $i < $count; $i++) {
 	my $channel = $sorted[$i];
 	my $starty = $i * 20 + 5;
@@ -62,8 +72,10 @@ sub OnScanPlot {
 	
 	foreach my $slot (@{$main::config{$channel}{'history'}}) {
 	    if ($slot->[1] >= $startat) {
-		$im->filledRectangle($slot->[1]           - $startat, $starty,
-				     ($slot->[2] || $now) - $startat, $endy,
+		$im->filledRectangle($slot->[1]       - $startat + $textwidth,
+				     $starty,
+				     ($slot->[2] || $now) -$startat +$textwidth,
+				     $endy,
 				     ($colors{$slot->[0]} || $fill));
 	    }
 	}
