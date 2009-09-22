@@ -39,9 +39,10 @@ GetOptions(\%opts,
 
 	   ["GUI:separator",   "Output Controls:"],
 	   ["g|gnuplot=s",     "gnuplot data file"],
+	   ["G|graphic=s",     "png data output"],
 
 	   ["nogui", "Don't show the gui"],
-	  );
+	  ) || die "bad arguments";
 
 $| = 1;
 
@@ -138,8 +139,29 @@ for (my $i = 0; $i < $#keys; $i++) {
 
 if ($opts{'g'}) {
     open(G, ">$opts{'g'}");
-    foreach my $key (sort @keys) {
+    foreach my $key (@keys) {
 	print G "$key  $data{$key}\n";
     }
     close(G);
 }
+
+if ($opts{'G'}) {
+    use GD;
+    my $height = 100;
+    my $im = new GD::Image($#keys,$height);
+    my $fill = $im->colorAllocate(0,0,255);
+    my $white = $im->colorAllocate(255,255,255);
+    $im->fill(1,1,$white);
+
+    my $count = 0;
+    foreach my $key (@keys) {
+	$im->rectangle($count, $height - ($data{$key} + 50), $count+1, $height, $fill);
+	print "$count - " . ($data{$key}+50) . "\n";
+	$count++;
+    }
+
+    open(G,">$opts{'G'}");
+    binmode G;
+    print G $im->png;
+}
+
