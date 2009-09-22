@@ -31,6 +31,25 @@ our %groups;
 our ($currentchannel, $currentstart, $currentlivetime, @toscan);
 our $locked = 0;
 
+our %modes =
+  (
+   'USB' => $Hamlib::RIG_MODE_USB,
+   'LSB' => $Hamlib::RIG_MODE_LSB,
+   'FM' => $Hamlib::RIG_MODE_FM,
+   'NFM' => $Hamlib::RIG_MODE_FM,
+   'WFM' => $Hamlib::RIG_MODE_WFM,
+   'AM' => $Hamlib::RIG_MODE_AM,
+   'CW' => $Hamlib::RIG_MODE_CW,
+   'CWR' => $Hamlib::RIG_MODE_CWR,
+   'RTTY' => $Hamlib::RIG_MODE_RTTY,
+   'RTTYR' => $Hamlib::RIG_MODE_RTTYR,
+   'PKTLSB' => $Hamlib::RIG_MODE_PKTLSB,
+   'PKTUSB' => $Hamlib::RIG_MODE_PKTUSB,
+   'PKTFM' => $Hamlib::RIG_MODE_PKTFM,
+   'ECSSUSB' => $Hamlib::RIG_MODE_ECSSUSB,
+   'ECSSLSB' => $Hamlib::RIG_MODE_ECSSLSB,
+  );
+
 #
 # read the command line options (and provide help output)
 #
@@ -286,6 +305,8 @@ sub set_channel {
       if ($config{$channel}{'tone'});
     $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
       if ($config{$channel}{'dcs'});
+    $rig->set_mode($modes{$config{$channel}{'mode'}},0)
+      if ($config{$channel}{'mode'});
     $currentchannel = $channel;
     $currentstart = time();
 }
@@ -392,6 +413,8 @@ sub next_scan {
 
 	# change the frequency and potentially the mode
 	$rig->set_freq($frequency * 1000000);
+	$rig->set_mode($modes{$config{$next}{'mode'}},0)
+	  if ($config{$next}{'mode'});
 	# XXX: mode
 
 	# sleep the scan time length
@@ -417,12 +440,14 @@ sub next_scan {
 	    $rig->set_ctcss_tone($config{$next}{'tone'} * 10)
 	      if ($config{$next}{'tone'});
 	    $rig->set_dcs_code($config{$next}{'dcs'} * 10)
-	      if ($config{$next}{'dcs'})
-	  } elsif ($currentchannel) {
-	      # fall back to the previous lower priority channel
+	      if ($config{$next}{'dcs'});
+	} elsif ($currentchannel) {
+	    # fall back to the previous lower priority channel
 
-	      $rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
-	  }
+	    $rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
+	    $rig->set_mode($modes{$config{$currentchannel}{'mode'}},0)
+	      if ($config{$currentchannel}{'mode'});
+	}
 
 
 	# remember the last time we checked this new channel
