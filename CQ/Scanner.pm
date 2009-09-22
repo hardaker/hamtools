@@ -215,7 +215,10 @@ sub popup_channel_menu {
 
 sub load_buttons {
    my $channelid = 2000;
-   foreach my $channel (@main::toscan) {
+
+   foreach my $channel (sort { $main::config{$a}{'priority'} <=> 
+				 $main::config{$b}{'priority'} }
+			@main::toscan) {
 
        my $bar = new Wx::BoxSizer(wxHORIZONTAL);
 
