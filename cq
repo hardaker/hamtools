@@ -599,7 +599,7 @@ model to 122 which is a Yaesu 857).
 
 If you have some perl modules in a non-standard directory:
 
-  libpath /path/to/the/dir/theyre/in 
+  libs /path/to/the/dir/theyre/in 
 
 =head1 DESCRIPTION
 
