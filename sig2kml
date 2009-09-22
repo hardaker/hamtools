@@ -7,7 +7,7 @@ use GeoDB;
 use GeoDB::Export::Map;
 use strict;
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 my %opts =
   (

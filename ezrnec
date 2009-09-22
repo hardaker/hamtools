@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 # NEC info:
 # http://www.nec2.org/part_3/toc.html
