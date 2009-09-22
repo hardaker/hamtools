@@ -59,7 +59,6 @@ sub new {
    $this->{'lockbutton'} = $lockbutton;
    EVT_BUTTON($this, 1, 
 	      sub {
-		  print STDERR "hi! $_[0] $_[1] $_[2]\n";
 		  $main::locked = !$main::locked;
 		  $_[0]->{'lockbutton'}->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
 		});
