@@ -75,6 +75,8 @@ my %data;
 
 my %config;
 my %groups;
+# scanning vars
+my ($currentchannel, $currentstart, $currentlivetime, @toscan);
 
 #$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
 #$rig->set_freq($opts{'s'} * 1000000);
@@ -149,9 +151,7 @@ if ($opts{'load'}) {
 # Scanning
 #
 } elsif ($opts{'scan'}) {
-    my ($currentchannel, $currentstart, $currentlivetime);
-
-    my @toscan = keys(%config);
+    @toscan = keys(%config);
     if ($opts{'scan'} ne 1) {
 	@toscan = find_group_members(split(/,\s*/,uc($opts{'scan'})));
 	Verbose("scan list: ", join(", ", @toscan),"\n");
@@ -159,130 +159,8 @@ if ($opts{'load'}) {
 
     while (1) {
 
-	my $time = time();
-	my $next = "";
-	my $currentlevel;
-
-	if ($currentchannel) {
-	    # see if current is active
-	    $currentlevel = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
-
-	    # completely fall off the current channel if it's been
-	    # inactive for longer than the specified hangtime.
-	    if ($currentlevel < $opts{'l'} &&
-		$currentlivetime +
-		($config{$currentchannel}{'hangtime'} || $opts{'hangtime'})
-		< $time) {
-		Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
-			       $currentlivetime-$currentstart));
-		$currentchannel = '';
-	    }
-
-	    if ($currentlevel > $opts{'l'}) {
-		$currentlivetime = $time;
-	    }
-	}
-
-	# find the next channel to look for.
-	foreach my $key (@toscan) {
-
-	    # if it has been long enough based on config, check it
-	    if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
-
-		# if disabled, forget it
-		next if ($config{$key}{'enabled'} eq 'false');
-
-		# if the current channel is active and is a higher
-		# priority, then skip this one.
-		next if ($currentchannel &&
-			 $config{$key}{'priority'} <=
-			 $config{$currentchannel}{'priority'});
-
-		# if we've checked it recently enough, don't do again
-		# (assuming we're listening to something, otherwise
-		# check anyway even though it's early).
-		next if (($config{$key}{'lastchecked'} +
-			  ($config{$next}{'checkevery'} || $opts{'time'})
-			  > $time) && $currentchannel);
-
-		# ok, then we should definitely search it.  But we
-		# need to pick the best one, so see if we have another
-		# one that needs to be checked first.
-		# XXX: optionally use priorities instead of time for sorting?
-		if (!$next) {
-		    $next = $key;
-		} elsif ($config{$next}{'lastchecked'}
-			 + ($config{$next}{'checkevery'} || $opts{'time'}) >
-			 $config{$key}{'lastchecked'}
-			 + ($config{$key}{'checkevery'} || $opts{'time'})) {
-		    $next = $key;
-		}
-	    }
-	}
-
-	# now that we've found one to check...
-	if ($next) {
-	    my $frequency;
-
-	    # normal channel or frequency range?
-	    if ($config{$next}{'endfrequency'}) {
-		# we're scanning a whole range; take the next step forward
-		if ($config{$next}{'currentfrequency'}) {
-		    $frequency = $config{$next}{'currentfrequency'} +
-		      $config{$next}{'interval'} || $opts{'i'};
-		    if ($frequency > $config{$next}{'endfrequency'}) {
-			$frequency = $config{$next}{'startfrequency'};
-		    }
-		} else {
-		    $frequency = $config{$next}{'startfrequency'};
-		}
-		$config{$next}{'currentfrequency'} = $frequency;
-	    } else {
-		# just a single channel
-		$frequency = $config{$next}{'frequency'};
-	    }
-
-	    # what to check next?
-
-	    # change the frequency and potentially the mode
-	    $rig->set_freq($frequency * 1000000);
-	    # XXX: mode
-
-	    # sleep the scan time length
-	    usleep($opts{'u'} * 1000000);
-
-	    # test for the new level
-	    my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
-
-	    Verbose(sprintf("  checked %-12s (pri=%-4d at %-8.8s):  %d\n", $next, $config{$next}{'priority'}, $frequency, $newchan));
-
-	    # XXX: minimum timeout for falling back somehow?
-
-	    # if the new level is better, we'll use it (because the
-	    # priority is already higher).
-	    if ($newchan > $opts{'l'}) {
-		# use the current frequency of the new channel
-		# remember this one as the new "best"
-		$currentchannel = $next;
-		$currentstart = $time;
-		Verbose("current: $currentchannel\n");
-
-		# set the potentially needed tone/dcs code
-		$rig->set_ctcss_tone($config{$next}{'tone'} * 10)
-		  if ($config{$next}{'tone'});
-		$rig->set_dcs_code($config{$next}{'dcs'} * 10)
-		  if ($config{$next}{'dcs'})
-            } elsif ($currentchannel) {
-		# fall back to the previous lower priority channel
-
-		$rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
-	    }
-
-
-	    # remember the last time we checked this new channel
-	    $config{$next}{'lastchecked'} = time();
-	}
-
+	next_scan();
+	
 	if ($opts{'w'}) {
 	    $MyApp::type = 'scan';
 	    my $app = MyApp->new(); # create
@@ -389,6 +267,141 @@ sub create_freq_graph {
 if ($opts{'w'}) {
     my $app = MyApp->new();	# create
     $app->MainLoop();		# go
+}
+
+sub next_scan {
+    my $time = time();
+    my $next = "";
+    my $currentlevel;
+
+    die "no scan list available!" if ($#toscan == -1);
+
+    #
+    # see if the current channel is still active (or else forget it
+    #
+    if ($currentchannel) {
+	# see if current is active
+	$currentlevel = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+
+	# completely fall off the current channel if it's been
+	# inactive for longer than the specified hangtime.
+	if ($currentlevel < $opts{'l'} &&
+	    $currentlivetime +
+	    ($config{$currentchannel}{'hangtime'} || $opts{'hangtime'})
+	    < $time) {
+	    Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
+			    $currentlivetime-$currentstart));
+	    $currentchannel = '';
+	}
+
+	if ($currentlevel > $opts{'l'}) {
+	    $currentlivetime = $time;
+	}
+    }
+
+    #
+    # find the next channel to look for.
+    #
+    foreach my $key (@toscan) {
+
+	# if it has been long enough based on config, check it
+	if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
+
+	    # if disabled, forget it
+	    next if ($config{$key}{'enabled'} eq 'false');
+
+	    # if the current channel is active and is a higher
+	    # priority, then skip this one.
+	    next if ($currentchannel &&
+		     $config{$key}{'priority'} <=
+		     $config{$currentchannel}{'priority'});
+
+	    # if we've checked it recently enough, don't do again
+	    # (assuming we're listening to something, otherwise
+	    # check anyway even though it's early).
+	    next if (($config{$key}{'lastchecked'} +
+		      ($config{$next}{'checkevery'} || $opts{'time'})
+		      > $time) && $currentchannel);
+
+	    # ok, then we should definitely search it.  But we
+	    # need to pick the best one, so see if we have another
+	    # one that needs to be checked first.
+	    # XXX: optionally use priorities instead of time for sorting?
+	    if (!$next) {
+		$next = $key;
+	    } elsif ($config{$next}{'lastchecked'}
+		     + ($config{$next}{'checkevery'} || $opts{'time'}) >
+		     $config{$key}{'lastchecked'}
+		     + ($config{$key}{'checkevery'} || $opts{'time'})) {
+		$next = $key;
+	    }
+	}
+    }
+
+    #
+    # now that we've found one to check, see if we should switch to it
+    #
+    if ($next) {
+	my $frequency;
+
+	# normal channel or frequency range?
+	if ($config{$next}{'endfrequency'}) {
+	    # we're scanning a whole range; take the next step forward
+	    if ($config{$next}{'currentfrequency'}) {
+		$frequency = $config{$next}{'currentfrequency'} +
+		  $config{$next}{'interval'} || $opts{'i'};
+		if ($frequency > $config{$next}{'endfrequency'}) {
+		    $frequency = $config{$next}{'startfrequency'};
+		}
+	    } else {
+		$frequency = $config{$next}{'startfrequency'};
+	    }
+	    $config{$next}{'currentfrequency'} = $frequency;
+	} else {
+	    # just a single channel
+	    $frequency = $config{$next}{'frequency'};
+	}
+
+	# what to check next?
+
+	# change the frequency and potentially the mode
+	$rig->set_freq($frequency * 1000000);
+	# XXX: mode
+
+	# sleep the scan time length
+	usleep($opts{'u'} * 1000000);
+
+	# test for the new level
+	my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
+
+	Verbose(sprintf("  checked %-12s (pri=%-4d at %-8.8s):  %d\n", $next, $config{$next}{'priority'}, $frequency, $newchan));
+
+	# XXX: minimum timeout for falling back somehow?
+
+	# if the new level is better, we'll use it (because the
+	# priority is already higher).
+	if ($newchan > $opts{'l'}) {
+	    # use the current frequency of the new channel
+	    # remember this one as the new "best"
+	    $currentchannel = $next;
+	    $currentstart = $time;
+	    Verbose("current: $currentchannel\n");
+
+	    # set the potentially needed tone/dcs code
+	    $rig->set_ctcss_tone($config{$next}{'tone'} * 10)
+	      if ($config{$next}{'tone'});
+	    $rig->set_dcs_code($config{$next}{'dcs'} * 10)
+	      if ($config{$next}{'dcs'})
+	  } elsif ($currentchannel) {
+	      # fall back to the previous lower priority channel
+
+	      $rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
+	  }
+
+
+	# remember the last time we checked this new channel
+	$config{$next}{'lastchecked'} = time();
+    }
 }
 
 sub read_config {
