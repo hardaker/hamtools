@@ -300,7 +300,6 @@ sub new {
    #
    my($MENU_QUIT, $MENU_GRID, $MENU_USAGE) = (3000..3999);
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
-   $mfile->Append($MENU_USAGE, "&Graph Usage\tCtrl-G", "Graph the usage of the scanner");
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
 #   $mfile->AppendSeparator();
 
@@ -312,6 +311,8 @@ sub new {
 
    my $scannermenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($scannermenu, "&Scanner");
+   $scannermenu->Append($MENU_USAGE, "&Graph Usage\tCtrl-G", "Graph the usage of the scanner");
+   $scannermenu->AppendSeparator;
 
    my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($configmenu, "&Config");
@@ -330,6 +331,7 @@ sub new {
    }
    $scannermenu->AppendSubMenu($mgroup, "&Switch to Group");
    $scannermenu->AppendSubMenu($maddgroup, "&Add in Group");
+   $scannermenu->AppendSeparator;
 
    my $gridid = 4200;
    my ($mgrid) = Wx::Menu->new(undef, wxMENU_TEAROFF);
@@ -352,7 +354,7 @@ sub new {
 
        $maxcountid++;
    }
-   $configmenu->AppendSubMenu($mmaxcount, "&Scan Count Maximum");
+   $scannermenu->AppendSubMenu($mmaxcount, "&Scan Count Maximum");
 
    load_buttons();
 
