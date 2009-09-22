@@ -16,6 +16,7 @@ my %opts = (
 	    samples => '1',
 	    c => ($ENV{'HOME'} . "/.cqrc"),
 	    l => -12,
+	    C => 1,
 
 	    time => 10,
 	    hangtime => 3,
@@ -67,6 +68,7 @@ LocalGetOptions(\%opts,
 	   ["scan=s",              "Scan this definition set"],
 	   ["u|usleep=s",          "time between sleeps"],
 	   ["hangtime=s",          "time in seconds to hang on an empty channel after traffic stops"],
+	   ["C|scancount=s",       "Number of stations to scan by default at once before returning to the locked one."],
 
 	   ["GUI:separator",   "Hamlib Controls:"],
 	   ["P|port=s",        "Port to use (/dev/ttyS0)"],
@@ -310,9 +312,10 @@ sub set_channel {
     $currentstart = time();
 }
 
+my $scancount = 0;
 sub next_scan {
     my $time = time();
-    my $next = "";
+    my $next;
     my $currentlevel;
 
     die "no scan list available!" if ($#toscan == -1);
@@ -321,6 +324,15 @@ sub next_scan {
 	Verbose("  Locked...\n");
 	return 1;
     }
+
+    # determine the number of channels to scan at once
+    # this really only affects the time returned at the end
+    if ($scancount == 0) {
+	$scancount = $opts{'C'};
+	$scancount = $config{$currentchannel}{'scancount'}
+	  if ($currentchannel && exists($config{$currentchannel}{'scancount'}));
+    }
+    $scancount--;
 
     #
     # see if the current channel is still active (or else forget it
@@ -349,6 +361,8 @@ sub next_scan {
     # find the next channel to look for.
     #
     foreach my $key (@toscan) {
+
+	next if ($key eq $currentchannel);
 
 	# if it has been long enough based on config, check it
 	if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
@@ -424,7 +438,7 @@ sub next_scan {
 	# test for the new level
 	my $newchan = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);;
 
-	Verbose(sprintf("  checked %-12s (pri=%-4d at %-8.8s):  %d\n", $next, $config{$next}{'priority'}, $frequency, $newchan));
+	Verbose(sprintf("  checked %2d %-12s (pri=%-5d at %-8.8s every %2ds):  %d\n", $scancount, $next, $config{$next}{'priority'}, $frequency, $config{$next}{'checkevery'}, $newchan));
 
 	# XXX: minimum timeout for falling back somehow?
 
@@ -436,18 +450,6 @@ sub next_scan {
 	    $currentchannel = $next;
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");
-
-	    # set the potentially needed tone/dcs code
-	    $rig->set_ctcss_tone($config{$next}{'tone'} * 10)
-	      if ($config{$next}{'tone'});
-	    $rig->set_dcs_code($config{$next}{'dcs'} * 10)
-	      if ($config{$next}{'dcs'});
-	} elsif ($currentchannel) {
-	    # fall back to the previous lower priority channel
-
-	    $rig->set_freq($config{$currentchannel}{'frequency'} * 1000000);
-	    $rig->set_mode($modes{$config{$currentchannel}{'mode'}},0)
-	      if ($config{$currentchannel}{'mode'});
 	}
 
 
@@ -456,6 +458,13 @@ sub next_scan {
     }
 
     if ($currentchannel) {
+	# if we're doing more than one at once, return a small
+	# fraction since we've already waited the minimum on the
+	# current channel.
+	return $opts{'u'}/100 if ($next && $scancount > 0);
+
+	$scancount = 0;
+	set_channel($currentchannel);
 	return 1; # XXX: make configurable
     } else {
 	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
@@ -724,6 +733,16 @@ Generally this isn't needed, but if set to I<false> it won't be used.
 The amount of time the channel should stay locked to after it goes
 silent.  See the --hangtime option too (per-channel settings override
 the command line).
+
+=item scancount
+
+The number of stations away from the current station that will be
+searched in a row before returning to the current station.  A setting
+of 1 will minimize the pause while switching away; higher settings
+will result in a higher pause while it searches for more channels but
+will have a better chance of catching higher priority traffic.
+
+The default can be set with the -C option.
 
 =back
 
