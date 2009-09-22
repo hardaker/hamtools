@@ -52,7 +52,6 @@ our %modes =
 #
 # read the command line options (and provide help output)
 #
-Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
 LocalGetOptions(\%opts,
 	   ["GUI:separator",     "Scanning Options:"],
 	   ["s|start-frequency=s", "Starting Frequency"],
