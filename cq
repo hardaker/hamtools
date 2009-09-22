@@ -16,7 +16,9 @@ my %opts = (
 	    i => '.0001',
 	    u => '50000',
 	    samples => '1',
+	    c => ($ENV{'HOME'} . "/.cqrc"),
 	   );
+
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case capture_output));
 GetOptions(\%opts,
 	   ["GUI:separator",     "Scanning Options:"],
@@ -35,6 +37,7 @@ GetOptions(\%opts,
 	   ["S|speed=s",       "serial speed"],
 
 	   ["GUI:separator",   "Setup options:"],
+	   ["c|config",        "Config file to load"],
 	   ["test",            "Test retunning speed of the receiver"],
 
 	   ["GUI:separator",   "Output Controls:"],
@@ -55,8 +58,12 @@ $rig->open();
 my $freq = $rig->get_freq();
 my %data;
 
+my %config;
+
 #$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
 #$rig->set_freq($opts{'s'} * 1000000);
+
+read_config($opts{'c'});
 
 if ($opts{'test'}) {
     $rig->set_freq(14.250 * 1000000);
@@ -259,7 +266,7 @@ sub new {
    #
    my $file_menu = Wx::Menu->new();
    my ($OPEN_NEW_DIR, $REMOVE_DIR, $SCALE_IMAGE, $APP_QUIT)=(1..100);
-   $file_menu-> Append( $OPEN_NEW_DIR, "&Open A Directory\tCtrl-O");
+   $file_menu->Append( $OPEN_NEW_DIR, "&Open A Directory\tCtrl-O");
    $file_menu->AppendSeparator();
    $file_menu->Append($SCALE_IMAGE,"&Scale Images To Window\tCtrl-S","",1);
    $file_menu->AppendSeparator();
@@ -288,3 +295,37 @@ if ($opts{'w'}) {
     $app->MainLoop();		# go
 }
 
+sub read_config {
+    my ($file) = @_;
+    open(C, "<$file");
+    my $line = 0;
+    my %defaults = ();
+    while (<C>) {
+	chomp();
+	$line++;
+	next if (/^\s*#/);
+	next if (/^\s*$/);
+
+	if (/^\s*default:\s*(.*)/) {
+	    foreach my $data (split(/,\s*/,$1)) {
+		my ($left, $right) = split(/\s*=\s*/, $data);
+		$defaults{$left} = $right;
+	    }
+	} elsif (/^\s*(\w+):\s*([^,]+),*(.*)/) {
+	    my $parts;
+	    %$parts = %defaults;
+	    $config{$1} = $parts;
+	    $parts->{'frequency'} = $2;
+	    foreach my $data (split(/,\s*/,$3)) {
+		my ($left, $right) = split(/\s*=\s*/, $data);
+		$parts->{$left} = $right;
+	    }
+	} else {
+	    Error("Error in config file on line $line");
+	}
+    }
+}
+
+sub Error {
+    print STDERR @_,"\n";
+}
