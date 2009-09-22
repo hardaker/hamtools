@@ -251,6 +251,14 @@ sub OnEnableAbove {
     }
 }
 
+sub OnGrid {
+    my $count = shift;
+    $grid->Clear(1);
+    $grid = new Wx::FlexGridSizer(1,int(($#main::toscan)/$count + 1));
+    load_buttons();
+    $subpanel->SetSizerAndFit($grid);
+}
+
 sub OnGroup {
     my ($group) = $_[0];
     main::load_group($group);
@@ -278,7 +286,7 @@ sub new {
    #
 
    $subpanel = Wx::Panel->new($this, -1);
-   $grid = new Wx::FlexGridSizer(1,int(($#main::toscan + 3)/2));
+   $grid = new Wx::FlexGridSizer(1,int(($#main::toscan)/2 + 1));
 #   $grid = new Wx::BoxSizer(wxHORIZONTAL);
 
    #
@@ -313,6 +321,16 @@ sub new {
        $groupid++;
    }
    $mbar->Append($mgroup, "&Group");
+
+   my $gridid = 4200;
+   my ($mgrid) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   my $rowcount;
+   foreach my $rowcount (1..15) {
+       $mgrid->Append($gridid, "$rowcount", "");
+       EVT_MENU($this, $gridid, sub {OnGrid("$rowcount");});
+       $gridid++;
+   }
+   $mbar->Append($mgrid, "&Rows");
 
    load_buttons();
 
