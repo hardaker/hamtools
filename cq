@@ -188,11 +188,18 @@ sub find_group_members {
 	    push @ret, $name;
 	}
     }
-    return @ret;
+    my %done;
+    my @out;
+    map { push @out, $_ if (!$done{$_});
+	  $done{$_} = 1;
+      } @ret;
+    return @out;
 }
 
+our $currentgroupconfig;
 sub load_group {
     my ($group) = @_;
+    $currentgroupconfig = $group;
     @toscan = find_group_members(split(/,\s*/,uc($group)));
     Verbose("scan list: ", join(", ", @toscan),"\n");
 }
