@@ -225,7 +225,12 @@ if ($opts{'load'}) {
 		# remember this one as the new "best"
 		$currentchannel = $next;
 		Verbose("current: $currentchannel\n");
-		# XXX: set CTSS
+
+		# set the potentially needed tone/dcs code
+		$rig->set_ctcss_tone($config{$next}{'tone'} * 10)
+		  if ($config{$next}{'tone'});
+		$rig->set_dcs_code($config{$next}{'dcs'} * 10)
+		  if ($config{$next}{'dcs'})
 	    } else {
 		# fall back to the previous lower priority channel
 
@@ -526,6 +531,10 @@ Ranges are also allowed:
 =item priority
 
 =item interval
+
+=item tone
+
+=item dcs
 
 (only used for ranges)
 
