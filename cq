@@ -392,6 +392,12 @@ sub set_history_label {
       = $label;
 }
 
+sub get_history_label {
+    my ($channel) = shift;
+    return if (!$channel);
+    return $config{$channel}{'history'}[$#{$config{$channel}{'history'}}][0];
+}
+
 sub close_history {
     my ($channel, $time, $label) = shift;
     return if (!$channel);
@@ -476,6 +482,7 @@ sub next_scan {
     #
     # find the next channel to look for.
     #
+    my $label = get_history_label($currentchannel);
     foreach my $key (@toscan) {
 
 	next if ($key eq $currentchannel);
@@ -585,7 +592,7 @@ sub next_scan {
 	return $opts{'u'}/100 if ($next && $scancount > 0);
 
 	$scancount = 0;
-	set_channel($currentchannel);
+	set_channel($currentchannel, 0, $label);
 	return 1; # XXX: make configurable
     } else {
 	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
