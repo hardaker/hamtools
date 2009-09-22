@@ -8,19 +8,20 @@ use DynaLoader;
 
 our $VERSION = "0.2";
 
-my %opts = (
-	    s => '14.150',
-	    e => '14.350',
-	    i => '.0001',
-	    u => '.1',
-	    samples => '1',
-	    c => ($ENV{'HOME'} . "/.cqrc"),
-	    l => -12,
-	    C => 1,
+our %opts;
+our %defopts = (
+		s => '14.150',
+		e => '14.350',
+		i => '.0001',
+		u => '.1',
+		samples => '1',
+		c => ($ENV{'HOME'} . "/.cqrc"),
+		l => -12,
+		C => 1,
 
-	    time => 10,
-	    hangtime => 3,
-	   );
+		time => 10,
+		hangtime => 3,
+	       );
 
 #
 # ensure they have the Hamlib perl module
@@ -111,7 +112,7 @@ $| = 1;
 #
 # read the config file
 #
-read_config($opts{'c'});
+read_config($opts{'c'} || $defopts{'c'});
 
 Die("No rig model set; -M, -P and -S are mandatory") if (!exists($opts{'M'}));
 Die("No rig serial port set; -M, -P and -S are mandatory") if (!exists($opts{'P'}));
@@ -351,7 +352,7 @@ sub next_scan {
     if ($scancount == 0) {
 	$scancount = $opts{'C'};
 	$scancount = $config{$currentchannel}{'scancount'}
-	  if ($currentchannel && exists($config{$currentchannel}{'scancount'}));
+	  if ($currentchannel && $config{$currentchannel}{'scancount'} > 0);
     }
     $scancount--;
 
@@ -362,6 +363,7 @@ sub next_scan {
 
 	if ($currentchannel eq '') {
 	    $currentchannel = shift @pastchannels;
+	    next if (!$currentchannel);
 	    set_channel($currentchannel);  # XXX: need a min setting; not full
 	    Verbose("falling back to $currentchannel\n");
 	}
@@ -378,14 +380,15 @@ sub next_scan {
 	    Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
 			    $currentlivetime-$currentstart));
 	    $currentchannel = '';
-	} else {
-	    # it's still "active" and thus we should stop looking here
-	    last;
+	    $currentlivetime = 0;
+	    next;
 	}
 
 	if ($currentlevel > $opts{'l'}) {
 	    $currentlivetime = $time;
 	}
+	# it's still "active" and thus we should stop looking here
+	last;
     }
 
     #
@@ -477,7 +480,7 @@ sub next_scan {
 	if ($newchan > $opts{'l'}) {
 	    # use the current frequency of the new channel
 	    # remember this one as the new "best"
-	    push @pastchannels, $currentchannel;
+	    push @pastchannels, $currentchannel if ($currentchannel);
 	    $currentchannel = $next;
 	    $currentstart = $time;
 	    Verbose("current: $currentchannel\n");
@@ -543,7 +546,8 @@ sub read_config {
 		push @skips, [$skip,$skip];
 	    }
 	} elsif (/^\s*option\s+(\S*)\s+(.*)/) {
-	    $opts{$1} = $2 if (!exists($opts{$1}));
+	    my ($name, $value) = ($1, $2);
+	    $opts{$name} = $value if (!exists($opts{$name}));
 	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
 	    my $groupname = $1;
 	    my $groups = $2;
@@ -572,6 +576,11 @@ sub read_config {
 	}
     }
     $fh->close();
+
+    # copy in the defaults
+    foreach my $def (keys(%defopts)) {
+	$opts{$def} = $defopts{$def} if (!exists($opts{$def}));
+    }
 }
 
 sub Error {
