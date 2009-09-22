@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+
+my $havehamlib = 
+  eval {
+      require Hamlib;
+  };
+Die("You need to intsall the Hamlib perl module before continuing ($@)")
+  if (!$havehamlib);
+
+import Hamlib;
+use Time::HiRes qw(usleep gettimeofday tv_interval);
+
+$| = 1;
+
+my %opts =
+  (t => 1);
+
+#
+# read the command line options (and provide help output)
+#
+LocalGetOptions(\%opts,
+		["GUI:separator",   "Hamlib Controls:"],
+		["P|port=s",        "Port to use (/dev/ttyS0)"],
+		["M|model=s",         "Rig model (122)"],
+		["S|speed=s",       "serial speed"],
+
+		["GUI:separator",   "Output Controls:"],
+		["t|sleep-time=s",  "Time between measurements (in second)"],
+		["e|every-step",    "Record every interval, not just on signal level changes"],
+	       );
+
+die("No rig model set; -M, -P and -S are mandatory") if (!exists($opts{'M'}));
+die("No rig serial port set; -M, -P and -S are mandatory") if (!exists($opts{'P'}));
+die("No rig serial rate; -M, -P and -S are mandatory") if (!exists($opts{'S'}));
+
+######################################################################
+# initialize hamlib
+#
+# initialize the rig connection
+Hamlib::rig_set_debug(1);
+our $rig = new Hamlib::Rig($opts{'M'});
+$rig->set_conf("rig_pathname", $opts{'P'});
+$rig->set_conf("serial_speed",$opts{'S'});
+$rig->open();
+
+# start recording
+my $lastfreq = $rig->get_freq();
+my $lastlevel = -999;
+
+# catch sigterm for closing
+$SIG{INT} = \&endit;
+
+# print the opening XML
+print "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<signals>
+  <signal frequency=\"$lastfreq\">
+";
+
+while (1) {
+    my $freq = $rig->get_freq();
+    if ($lastfreq ne $freq) {
+	# Change signal frequency in output
+	print "  </signal>\n";
+	print "  <signal frequency=\"$freq\">\n";
+	$lastfreq = $freq;
+    }
+    my $value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+    my $time = [gettimeofday];
+
+    if ($opts{'e'} || $lastlevel ne $value) {
+	print "    <record level=\"$value\" secs=\"$time->[0]\" usecs=\"$time->[1]\"/>\n";
+	$lastlevel = $value;
+    }
+    usleep($opts{'t'} * 1000000);
+}
+
+
+sub endit {
+    print "  </signal>
+</signals>
+";
+    exit;
+}
+
+#######################################################################
+# Getopt::GUI::Long portability wrapper
+#
+sub LocalGetOptions {
+    if (eval {require Getopt::GUI::Long;}) {
+	import Getopt::GUI::Long;
+	# optional configure call
+	Getopt::GUI::Long::Configure(qw(display_help no_ignore_case
+					capture_output));
+	return GetOptions(@_);
+    }
+    require Getopt::Long;
+    import Getopt::Long;
+    # optional configure call
+    Getopt::Long::Configure(qw(auto_help no_ignore_case));
+    my $ret = GetOptions(LocalOptionsMap(@_));
+    if ($opts{'h'}) {
+	print STDERR "You need to install the perl Getopt::GUI::Long perl module to get help output;\n";
+	exit 1;
+    }
+    return $ret;
+}
+
+sub LocalOptionsMap {
+    my ($st, $cb, @opts) = ((ref($_[0]) eq 'HASH')
+			    ? (1, 1, $_[0]) : (0, 2));
+    for (my $i = $st; $i <= $#_; $i += $cb) {
+	if ($_[$i]) {
+	    next if (ref($_[$i]) eq 'ARRAY' && $_[$i][0] =~ /^GUI:/);
+	    push @opts, ((ref($_[$i]) eq 'ARRAY') ? $_[$i][0] : $_[$i]);
+	    push @opts, $_[$i+1] if ($cb == 2);
+	}
+    }
+    push @opts,"h|help";
+    return @opts;
+}
+
+=cut
