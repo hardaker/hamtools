@@ -23,6 +23,8 @@ our @ISA=qw(Wx::Frame);
 
 my $lockbutton;
 my $mainpanel;
+my $subpanel;
+my $grid;
 
 sub channel_button {
     my ($channelb, $event) = @_;
@@ -68,6 +70,15 @@ sub set_channel_button {
     $main::config{$channel}{'button'}->SetFont($font);
 }
 
+sub OnGrid {
+    print "setting to 1\n";
+    $mainpanel->SetAutoLayout(1);
+    $subpanel->SetAutoLayout(1);
+    $grid->SetRows(4);
+    $subpanel->SetSizerAndFit($grid);
+    $subpanel->Fit();
+}
+
 sub new {
    my $class = shift;
    my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
@@ -77,25 +88,28 @@ sub new {
    #   replace the filename with something appropriate.
    #
 
-   my $panel = Wx::Panel->new($this, -1);
-   my $grid = new Wx::GridSizer(1,int(($#main::toscan + 3)/2));
+   $subpanel = Wx::Panel->new($this, -1);
+   $grid = new Wx::GridSizer(1,int(($#main::toscan + 3)/2));
 
    #
    # MENU setup
    #
-   my($MENU_QUIT) = (3000..3999);
+   my($MENU_QUIT, $MENU_GRID) = (3000..3999);
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
+#   $mfile->AppendSeparator();
+   $mfile->Append($MENU_GRID, "&Grid\tCtrl-G", "Change the grid");
 
    my($mbar) = Wx::MenuBar->new();
-   $mbar->Append($mfile, "&Test");
+   $mbar->Append($mfile, "&Commands");
    $this->SetMenuBar($mbar);
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
+   EVT_MENU($this, $MENU_GRID, \&OnGrid);
 
    my $channelid = 2000;
    foreach my $channel (@main::toscan) {
        $main::config{$channel}{'button'} =
-	 Wx::Button->new($panel, $channelid, $channel);
+	 Wx::Button->new($subpanel, $channelid, $channel);
        my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
        $main::config{$channel}{'button'}->SetFont($font);
        $grid->Add($main::config{$channel}{'button'});
@@ -114,45 +128,20 @@ sub new {
    }
    $mbar->Append($menable, "&Enable/Disable");
 
-   $grid->Add($lockbutton = Wx::Button->new($panel, 1, 'Lock            '));
+   $grid->Add($lockbutton = Wx::Button->new($subpanel, 1, 'Lock            '));
    $this->{'lockbutton'} = $lockbutton;
    EVT_BUTTON($this, 1, 
 	      sub {
 		  $main::locked = !$main::locked;
 		  $_[0]->{'lockbutton'}->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
 		});
-   $panel->SetSizer($grid);
+   $subpanel->SetSizerAndFit($grid);
 #   Centre();
 
    my $timer = Wx::Timer->new($this, 1000);
    $timer->Start(1000, 1);
    $this->EVT_TIMER($timer, \&on_timer);
 #   $this->Connect(1000, -1, -1, \&on_timer);
-
-   if (0) {
-   #
-   # Set up the menu bar.
-   #
-   my $file_menu = Wx::Menu->new();
-   my ($OPEN_NEW_DIR, $REMOVE_DIR, $SCALE_IMAGE, $APP_QUIT)=(1..100);
-   $file_menu->Append( $OPEN_NEW_DIR, "&Open A Directory\tCtrl-O");
-   $file_menu->AppendSeparator();
-   $file_menu->Append($SCALE_IMAGE,"&Scale Images To Window\tCtrl-S","",1);
-   $file_menu->AppendSeparator();
-   $file_menu->Append ($APP_QUIT, "E&xit\tCtrl-x","Exit Application");
-   #
-   # Note that even though there are 6 options, only
-   # 4 of them are active as they're the only ones
-   # bound to event handlers.
-   #
-#   EVT_MENU($this, $OPEN_NEW_DIR, \&OnDirDialog);
-#   EVT_MENU($this, $SCALE_IMAGE,  \&Set_Scale);
-   EVT_MENU($this, $APP_QUIT,     sub {$_[0]->Close( 1 )});
-
-   my $menubar= Wx::MenuBar->new();
-   $menubar->Append ($file_menu, "&File");
-   $this->SetMenuBar($menubar);
-   }
 
    $this;  # return the frame object to the calling application.
 }
