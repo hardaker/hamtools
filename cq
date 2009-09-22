@@ -67,6 +67,7 @@ my $freq = $rig->get_freq();
 my %data;
 
 my %config;
+my %groups;
 
 #$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
 #$rig->set_freq($opts{'s'} * 1000000);
@@ -116,6 +117,20 @@ if ($opts{'test'}) {
     exit;
 }
 
+sub find_group_members {
+    my @names = @_;
+    my @ret;
+    foreach my $name (@names) {
+	if (exists($groups{uc($name)})) {
+	    push @ret, find_group_members(@{$groups{uc($name)}})
+	} else {
+	    die "ack: no such channel: $name" if (!exists($config{$name}));
+	    push @ret, $name;
+	}
+    }
+    return @ret;
+}
+
 #
 # Load previous state
 #
@@ -131,7 +146,8 @@ if ($opts{'load'}) {
 
     my @toscan = keys(%config);
     if ($opts{'scan'} ne 1) {
-	@toscan = split(/,\s*/,uc($opts{'scan'}));
+	@toscan = find_group_members(split(/,\s*/,uc($opts{'scan'})));
+	Verbose("scan list: ", join(", ", @toscan),"\n");
     }
 
     while (1) {
@@ -459,6 +475,10 @@ sub read_config {
 		my ($left, $right) = split(/\s*=\s*/, $data);
 		$defaults{$left} = $right;
 	    }
+	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
+	    my $groupname = $1;
+	    my $groups = $2;
+	    push @{$groups{uc($groupname)}}, split(/,\s*/, uc($groups));
 	} elsif (/^\s*(\w+):\s*([^,]+),*(.*)/) {
 	    my $parts;
 	    %$parts = %defaults;
