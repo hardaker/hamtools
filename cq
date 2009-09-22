@@ -5,6 +5,7 @@ use Getopt::GUI::Long;
 use strict;
 use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Data::Dumper;
+use IO::File;
 
 my %opts = (
 	    P => '/dev/ttyS0',
@@ -460,11 +461,13 @@ if ($opts{'w'}) {
 }
 
 sub read_config {
-    my ($file) = @_;
-    open(C, "<$file");
+    my ($file, $defaults) = @_;
+    my $fh = new IO::File;
+    $fh->open("<$file");
     my $line = 0;
     my %defaults = ();
-    while (<C>) {
+    %defaults = %$defaults if ($defaults);
+    while (<$fh>) {
 	chomp();
 	$line++;
 	next if (/^\s*#/);
@@ -475,6 +478,8 @@ sub read_config {
 		my ($left, $right) = split(/\s*=\s*/, $data);
 		$defaults{$left} = $right;
 	    }
+	} elsif (/^\s*include\s+(.*)/) {
+	    read_config($1, \%defaults);
 	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
 	    my $groupname = $1;
 	    my $groups = $2;
@@ -498,6 +503,7 @@ sub read_config {
 	    Error("Error in config file on line $line");
 	}
     }
+    $fh->close();
 }
 
 sub Error {
@@ -527,6 +533,12 @@ for generating a histogram.
 
 $HOME/.cqrc can contain the following definition lines:
 
+=head2 INCLUDE
+
+To include another file, use:
+
+  include /path/to/file
+
 =head2 CHANNEL LINES
 
 Lines that define channels look like:
@@ -542,7 +554,7 @@ Ranges are also allowed:
 
   20mSSB: 14.150-14.350,interval=.01
 
-=head3 Tokens
+=head3 Channel and Range Tokens
 
 =over
 
