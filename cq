@@ -26,6 +26,7 @@ my %opts = (
 #
 our %config;
 our %groups;
+our %skip;
 # scanning vars
 our ($currentchannel, $currentstart, $currentlivetime, @toscan);
 our $locked = 0;
@@ -392,16 +393,18 @@ sub next_scan {
 	# normal channel or frequency range?
 	if ($config{$next}{'endfrequency'}) {
 	    # we're scanning a whole range; take the next step forward
-	    if ($config{$next}{'currentfrequency'}) {
-		$frequency = $config{$next}{'currentfrequency'} +
-		  $config{$next}{'interval'} || $opts{'i'};
-		if ($frequency > $config{$next}{'endfrequency'}) {
+	    do {
+		if ($config{$next}{'currentfrequency'}) {
+		    $frequency = $config{$next}{'currentfrequency'} +
+		      $config{$next}{'interval'} || $opts{'i'};
+		    if ($frequency > $config{$next}{'endfrequency'}) {
+			$frequency = $config{$next}{'startfrequency'};
+		    }
+		} else {
 		    $frequency = $config{$next}{'startfrequency'};
 		}
-	    } else {
-		$frequency = $config{$next}{'startfrequency'};
-	    }
-	    $config{$next}{'currentfrequency'} = $frequency;
+		$config{$next}{'currentfrequency'} = $frequency;
+	    } until (!exists($skip{sprintf("%.6f", $frequency)}));
 	} else {
 	    # just a single channel
 	    $frequency = $config{$next}{'frequency'};
@@ -466,6 +469,7 @@ sub read_config {
     my $line = 0;
     my %defaults = ();
     %defaults = %$defaults if ($defaults);
+
     while (<$fh>) {
 	chomp();
 	$line++;
@@ -480,7 +484,9 @@ sub read_config {
 	} elsif (/^\s*include\s+(.*)/) {
 	    read_config($1, \%defaults);
 	} elsif (/^\s*libs\s+(.*)/) {
-	    push @INC, $1;
+	    unshift @INC, $1;
+	} elsif (/^\s*skip:\s+(.*)/) {
+	    $skip{sprintf("%.6f", $1)} = 1;
 	} elsif (/^\s*option\s+(\S*)\s+(.*)/) {
 	    $opts{$1} = $2 if (!exists($opts{$1}));
 	} elsif (/^\s*group\s+([^:]+):\s*(.*)/) {
@@ -721,6 +727,17 @@ the command line).
 
 =back
 
+=head2 SKIPPING
+
+For frequency scanning, you can skip certain known channels that may
+have constant tones on them in you local area.  EG:
+
+  6mscan: 50.100-50.300,interval=.01
+  skip: 50.130
+
+will allow you to scan from 50.100 to 50.300 but skips 50.130 when
+it's searching
+
 =head2 OPTION LINES
 
 You can also add command line options to the .cqrc file.  They must be
@@ -825,5 +842,14 @@ Licensed under GPLv2
 
 =cut
 
-=cut
+# not needed but attempted by File::Temp
+#perl2exe_exclude VMS::Stdio
 
+#I understand needing this one:
+# (which doesn't work because it needs VMS/Stdio.pm???)
+#perl2exe_include File::Temp
+#perl2exe_include Getopt::GUI::Long
+
+#Probably don't need these technically?
+#perl2exe_include bytes
+#perl2exe_include attributes
