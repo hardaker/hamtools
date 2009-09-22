@@ -1,0 +1,174 @@
+p { 
+  margin-left: 2em;
+  border-width: 0px 0px 0px 1px;
+  border-color: #bbd;
+  border-style: solid;
+  padding-left: 1em;
+}
+
+p.top { 
+  margin-left: .5em;
+  border-width: 0px;
+}
+
+img { 
+  margin-left: 100px;
+}
+
+p.quote { 
+  text-align: center;
+  margin-bottom: 0px;
+  margin-top: 0px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+h1 { 
+  background-color: #ddf;
+  text-align: center;
+}
+
+h2 { 
+  border-color: #bbd;
+  border-width: 0 0 3px 0;
+  border-style: solid;
+}
+
+div.container { 
+  margin-left: 5px;
+  width: 100%;
+  float: left;
+  border-width: 0px;
+  margin-bottom: 20px;
+}
+
+div { 
+  border-color: black;
+  border-style: solid;
+  border-width: 0px;
+  /* width: 32%; */
+}
+
+div.title {
+  background-color: #ccc;
+  border-width: 0px 0px 1px 0px;
+  border-style: solid;
+  border-color: #555;
+  font-weight: bold;
+  /* width: 32%; */
+}
+
+span { 
+  border-color: #ddd;
+  border-style: solid;
+  border-width: 0px;
+}
+
+span.set { 
+  width: 32%;
+  float: left;
+  margin-left: 5px;
+  border-width: 1px;
+  border-color: #888;
+}
+
+span.set66 { 
+  width: 64%;
+  float: left;
+  margin-left: 5px;
+  border-width: 1px;
+  border-color: #888;
+}
+
+span.img { 
+  border-color: #ddd;
+  border-style: solid;
+  border-width: 0px;
+  float: left;
+  width: 19%;
+}
+
+span.top { 
+  border-color: #ddd;
+  border-style: solid;
+  border-width: 0px;
+  float: left;
+  width: 60%;
+}
+
+table.bordered { 
+  border-style: solid;
+  border-width: 1px;
+  border-color: #444;
+  padding: 0px;
+  border-collapse: collapse;
+  width: 90%;
+  margin-left: 5%;
+}
+
+
+table.bordered th { 
+  background-color: #ddd;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #444;
+  padding: 0px;
+  margin-left: 0px;
+}
+
+table.bordered td { 
+  border-style: solid;
+  border-width: 1px;
+  border-color: #444;
+  padding: 2px;
+  margin-left: 0px;
+}
+
+pre { 
+  border-style: dashed;
+  border-width: 1px;
+  border-color: #000;
+  background-color: #ddd;
+  margin-left: 50px;
+  margin-right: 50px;
+}
+
+p.q { 
+  font-weight: bold;
+  font-size: 1.2em;
+  background-color: #ddd;
+  margin-left: 1.5em;
+  color: #800;
+}
+
+p.a { 
+  margin-left: 3em;
+  color: #060;
+}
+
+ul#abullets { 
+  margin-left: 4em;
+  color: #060;
+}
+
+span.button { 
+  width: 25%;
+  font-size: .8em;
+  background-color: #ddf;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  padding: .5em;
+  margin-top: 1em;
+}
+
+div.buttons { 
+  width: 100%;
+  margin-left: 10%;
+  margin-right: 10%;
+  margin-top: 1em;
+/*
+  border-color: #000;
+  border-width: 1px;
+  border-style: solid;
+*/
+}
