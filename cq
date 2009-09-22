@@ -343,6 +343,14 @@ if ($opts{'w'}) {
     $app->MainLoop();		# go
 }
 
+sub get_level {
+    return $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+}
+
+sub get_frequency {
+    return $rig->get_freq() / 1000000;
+}
+
 sub set_channel {
     my ($channel, $justbasics, $label) = @_;
     die "no channel to switch to" if (!$channel);

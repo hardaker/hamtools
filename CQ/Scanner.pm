@@ -125,21 +125,27 @@ sub popup_channel_menu {
     my $frame = new Wx::Frame;
     my $channel = $channelb->{'channel'};
     my $item;
+    my $menuid = 2100;
 
-    $item = $menu->AppendCheckItem(2100, "Enabled");
+    $item = $menu->AppendCheckItem($menuid, "Enabled");
     if ($main::config{$channel}{'enabled'} ne 'false') {
 	$item->Check(1);
     }
-    EVT_MENU($menu, 2100, sub { OnEnable($channel) });
+    EVT_MENU($menu, $menuid, sub { OnEnable($channel) });
 
-    $item = $menu->Append(2101, "Info");
-    EVT_MENU($menu, 2101, sub { OnInfo($channel) });
+    $item = $menu->Append(++$menuid, "Channel Details");
+    EVT_MENU($menu, $menuid, sub { OnInfo($channel) });
 
-    $item = $menu->Append(2102, "Disable all channels above this one");
-    EVT_MENU($menu, 2102, sub { OnDisableAbove($channel) });
+    $item = $menu->Append(++$menuid, "Change frequency to radio setting");
+    EVT_MENU($menu, $menuid, sub { $main::config{$channel}{'frequency'} = 
+				     main::get_frequency() });
 
-    $item = $menu->Append(2103, "Enable this and all channels above this one");
-    EVT_MENU($menu, 2103, sub { OnEnableAbove($channel) });
+    $item = $menu->Append(++$menuid, "Disable all channels above this one");
+    EVT_MENU($menu, $menuid, sub { OnDisableAbove($channel) });
+
+    $item = $menu->Append(++$menuid,
+			  "Enable this and all channels above this one");
+    EVT_MENU($menu, $menuid, sub { OnEnableAbove($channel) });
 
 #     $menu->Append(2101, "Test Item 2");
 #     EVT_MENU($menu, 2101, sub { got_something("2", $channelb->{'channel'})});
