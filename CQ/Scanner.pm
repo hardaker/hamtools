@@ -25,6 +25,15 @@ our @ISA=qw(Wx::Frame);
 my $mainpanel;
 my $subpanel;
 my $grid;
+my $scanenabled = 1;
+
+sub set_button_text {
+    my ($channel, $format) = @_;
+    $format = "%s" if (!$format);
+    my $val = sprintf($format, $main::config{$channel}{'label'} || $channel);
+    $main::config{$channel}{'button'}->SetLabel($val);
+    $main::config{$channel}{'lastformat'} = $format;
+}
 
 sub generate_history_plot {
     Die("You need to install the GD module before you can create graphs")
@@ -107,6 +116,18 @@ sub OnScanPlot {
     1;
 }
 
+sub OnTuner {
+    use CQ::Tuner;
+    my $frame = CQ::Tuner->new("Tuner",
+			       [-1,-1], [-1,-1]);
+    unless ($frame) {
+	print "unable to create tuner frame -- exiting."; 
+	exit(1);
+    }
+    $frame->Show( 1 );
+    1;
+}
+
 sub OnInfo {
     use CQ::ChannelInfo;
     my ($channel) = @_;
@@ -135,6 +156,19 @@ sub popup_channel_menu {
 
     $item = $menu->Append(++$menuid, "Channel Details");
     EVT_MENU($menu, $menuid, sub { OnInfo($channel) });
+
+    $item = $menu->Append(++$menuid, "Rename");
+    EVT_MENU($menu, $menuid, sub { 
+		 my ($self) = @_;
+		 my $box = Wx::TextEntryDialog->new($mainpanel, "Rename To:",
+						    "Rename the $channel button");
+		 $box->SetValue($channel);
+		 if ($box->ShowModal() == wxID_OK) {
+		     $main::config{$channel}{'label'} = $box->GetValue();
+		     set_button_text($channel,
+				     $main::config{$channel}{'lastformat'});
+		 }
+	     });
 
     $item = $menu->Append(++$menuid, "Change frequency to radio setting");
     EVT_MENU($menu, $menuid, sub { $main::config{$channel}{'frequency'} = 
@@ -194,9 +228,7 @@ sub load_buttons {
 sub channel_button {
     my ($channelb, $event) = @_;
     set_channel_button($main::currentchannel) if ($main::currentchannel);
-    $main::config{$main::currentchannel}{'button'}
-      ->SetLabel("$main::currentchannel")
-	if ($main::currentchannel);
+    set_button_text($main::currentchannel) if ($main::currentchannel);
     if ($main::locked && $main::currentchannel eq $channelb->{'channel'}) {
 	# unlock
 	$main::locked = 0;
@@ -204,7 +236,7 @@ sub channel_button {
 	# lock to a channel
 	main::set_channel($channelb->{'channel'},0,'locked');
 	set_channel_button($channelb->{'channel'}, wxNORMAL, wxBOLD);
-	$channelb->SetLabel("(L) $channelb->{'channel'}");
+	set_button_text($channelb->{'channel'}, "(L) %s");
 	$main::locked = 1;
     }
 
@@ -219,11 +251,11 @@ sub OnEnable {
     if ($main::config{$channel}{'enabled'} eq 'false') {
 	$main::config{$channel}{'enabled'} = 'true';
 	set_channel_button($channel);
-	$main::config{$channel}{'button'}->SetLabel("$channel");
+	set_button_text($channel);
     } else {
 	$main::config{$channel}{'enabled'} = 'false';
 	set_channel_button($channel, wxSLANT);
-	$main::config{$channel}{'button'}->SetLabel("(D) $channel");
+	set_button_text($channel, "(D) %s");
     }
 }
 
@@ -234,7 +266,7 @@ sub OnDisableAbove {
 	if ($main::config{$todo}{'priority'} > $priority) {
 	    $main::config{$todo}{'enabled'} = 'false';
 	    set_channel_button($todo, wxSLANT);
-	    $main::config{$todo}{'button'}->SetLabel("(D) $todo");
+	    set_button_text($todo, "(D) %s");
 	}
     }
 }
@@ -246,7 +278,7 @@ sub OnEnableAbove {
 	if ($main::config{$todo}{'priority'} >= $priority) {
 	    $main::config{$todo}{'enabled'} = 'true';
 	    set_channel_button($todo);
-	    $main::config{$todo}{'button'}->SetLabel("$todo");
+	    set_button_text($todo);
 	}
     }
 }
@@ -298,7 +330,7 @@ sub new {
    #
    # MENU setup
    #
-   my($MENU_QUIT, $MENU_GRID, $MENU_USAGE) = (3000..3999);
+   my($MENU_QUIT, $MENU_GRID, $MENU_USAGE, $MENU_TUNER) = (3000..3999);
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
 #   $mfile->AppendSeparator();
@@ -308,10 +340,15 @@ sub new {
    $this->SetMenuBar($mbar);
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
    EVT_MENU($this, $MENU_USAGE, \&OnScanPlot);
+   EVT_MENU($this, $MENU_TUNER, \&OnTuner);
 
    my $scannermenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($scannermenu, "&Scanner");
    $scannermenu->Append($MENU_USAGE, "&Graph Usage\tCtrl-G", "Graph the usage of the scanner");
+   $scannermenu->AppendSeparator;
+
+   $scannermenu->Append($MENU_TUNER, "&Show Tuner Window\tCtrl-T",
+			"Show the tuner window");
    $scannermenu->AppendSeparator;
 
    my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
@@ -369,6 +406,11 @@ sub new {
    $this;  # return the frame object to the calling application.
 }
 
+sub OnEnableScanner {
+    $scanenabled = !$scanenabled;
+    start_timer(.1) if ($scanenabled);
+}
+
 sub on_timer {
     my $oldchannel = $main::currentchannel;
     my $sleeptime = main::next_scan();
@@ -382,11 +424,18 @@ sub on_timer {
 	    $main::config{$main::currentchannel}{'button'}->SetFont($font);
 	}
     }
+    start_timer($sleeptime);
+    $mainpanel->Update();
+}
+
+sub start_timer {
+    my ($sleeptime) = @_;
+    return if (!$scanenabled);
+
     my $timer = Wx::Timer->new($mainpanel, 1000);
     $timer->Start(($sleeptime > .01 ? $sleeptime : .01) * 1000, 1);
     $mainpanel->EVT_TIMER($timer, \&on_timer);
     $mainpanel->Update();
 }
-
 
 1;

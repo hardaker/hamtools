@@ -126,7 +126,7 @@ Die("No rig serial rate; -M, -P and -S are mandatory") if (!exists($opts{'S'}));
 
 # initialize the rig connection
 Hamlib::rig_set_debug(1);
-my $rig = new Hamlib::Rig($opts{'M'});
+our $rig = new Hamlib::Rig($opts{'M'});
 $rig->set_conf("rig_pathname", $opts{'P'});
 $rig->set_conf("serial_speed",$opts{'S'});
 $rig->open();
