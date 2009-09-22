@@ -2,13 +2,21 @@
 <html>
   <head>
     <title>HamTools</title>
+    <link rel="StyleSheet" type="text/css" href="/style.css" />
   </head>
 
   <body>
-    <h1>About Hamtools</h1>
+    <h1>Tools for Hams</h1>
 
-    <p>Hamtools is simply a collection of random tools that have been
-    written for doing various things with amateur radio.</p>
+    <p class="top">Hamtools is simply a collection of random tools
+    that have been written for doing various things with amateur
+    radio.</p>
+
+    <h2>Releases</h2>
+
+    <p class="top">See the <a href="/releases/releases.cgi">Download List</a></p>
+
+    <h1>The Tools</h1>
 
     <h2>cq</h2>
     <p><a href="/cq/">cq</a> provides the ability to control a
@@ -16,6 +24,28 @@
     prioritized frequency scanning.</p>
 
     <img src="/cq/cq.png" />
+
+    <h2>signalrecord</h2>
+    <p><a href="/docs/signalrecord.html">signalrecord</a> monitors a
+    CAT controlled radio for changes in signal levels and records the
+    results.  The data can then be fed to <b>sig2kml</b> or
+    <b>signalcount</b> for processing (or to your own tool; the output
+    is simple XML)</p>
+
+    <h2>sig2kml</h2>
+    <p><a href="/docs/sig2kml.html">sig2kml</a> combines recorded signals
+    and GPS track data to produce receiption quality maps either in
+    png or kml format.  <a href="sig2kml.html">This example below</a>
+    was created taking measurements while riding a bike.</p>
+
+    <a href="sig2kml.html"><img src="images/sig2kml-sm.png" /></a>
+
+    <h2>signalcount</h2> <p><a
+    href="/docs/signalcount.html">signalcount</a> counts signals
+    recorded in the output from signalrecord and produces output
+    suitable for bar graphs.</p>
+
+    <img src="/images/2msample.png" />
 
     <h2>ezrnec</h2>
     <p>The NEC language is fairly complex to understand and use.  <a
@@ -44,28 +74,11 @@ volt left 1
 freq ${%{freq} - .5} ${%{freq} + .5}
       </pre>
 
-    <h2>signalrecord</h2>
-    <p><a href="/docs/signalrecord.html">signalrecord</a> monitors a
-    CAT controlled radio for changes in signal levels and records the
-    results.  The data can then be fed to <b>sig2kml</b> or
-    <b>signalcount</b> for processing (or to your own tool; the output
-    is simple XML)</p>
-
-    <h2>sig2kml</h2>
-    <p><a href="/docs/sig2kml">sig2kml</a> combines recorded signals
-    and GPS track data to produce receiption quality maps either in
-    png or kml format.</p>
-
-    <h2>signalcount</h2> <p><a
-    href="/docs/signalcount.html">signalcount</a> counts signals
-    recorded in the output from signalrecord and produces output
-    suitable for bar graphs.</p>
-
     <hr />
-    <address><a href="mailto:wes ATAT ws6z DOTTA com">Wes Hardaker</a></address>
+    <a href="http://www.ws6z.com/">Wes Hardaker</a>
 <!-- Created: Mon Mar 23 15:32:50 PDT 2009 -->
 <!-- hhmts start -->
-Last modified: Mon Mar 23 16:04:19 PDT 2009
+Last modified: Tue Mar 24 10:37:29 PDT 2009
 <!-- hhmts end -->
   </body>
 </html>
