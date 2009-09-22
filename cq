@@ -149,7 +149,7 @@ if ($opts{'load'}) {
 # Scanning
 #
 } elsif ($opts{'scan'}) {
-    my ($currentchannel, $currentstart);
+    my ($currentchannel, $currentstart, $currentlivetime);
 
     my @toscan = keys(%config);
     if ($opts{'scan'} ne 1) {
@@ -170,11 +170,16 @@ if ($opts{'load'}) {
 	    # completely fall off the current channel if it's been
 	    # inactive for longer than the specified hangtime.
 	    if ($currentlevel < $opts{'l'} &&
-		$currentstart +
+		$currentlivetime +
 		($config{$currentchannel}{'hangtime'} || $opts{'hangtime'})
 		< $time) {
-		Verbose("current: --$currentchannel ended--\n");
+		Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
+			       $currentlivetime-$currentstart));
 		$currentchannel = '';
+	    }
+
+	    if ($currentlevel > $opts{'l'}) {
+		$currentlivetime = $time;
 	    }
 	}
 
