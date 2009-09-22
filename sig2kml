@@ -7,6 +7,7 @@ use GeoDB;
 use GeoDB::Export::Map;
 use strict;
 
+our $VERSION = '0.5';
 
 my %opts =
   (
@@ -14,6 +15,7 @@ my %opts =
    'M' => 50,   # 50 = max signal reported on my 857D
    'opaque' => int(255*50/100),
    'hue' => .25, # hue range
+   'map-size' => '3',
   );
 
 if (-f "$ENV{'HOME'}/.sig2kmlrc") {
@@ -34,6 +36,7 @@ LocalGetOptions(\%opts,
 		["p|prefix=s",      "Use a common prefix for all the below"],
 		["o|output-file=s", "Output KML file"],
 		["map=s",           "Output map (png) file"],
+		["map-size=s",      "Output map size in OSM squares"],
 		["m|min-level=s",   "Minimum signal level to report"],
 		["M|max-level=s",   "Maximum signal level"],
 		["hue=s",           "Hue Range (0..this)"],
@@ -229,7 +232,7 @@ if ($opts{'o'}) {
 if ($opts{'map'}) {
     my $mapdb = new GeoDB::Export::Map();
     my ($im, @mapbounds) =
-      $mapdb->make_map($minlat, $minlon, $maxlat, $maxlon, 3);
+      $mapdb->make_map($minlat, $minlon, $maxlat, $maxlon, $opts{'map-size'});
     my ($imgx, $imgy) = $im->getBounds();
     my $red = $im->colorAllocate(255,0,0);
     my $im2 = new GD::Image($imgx, $imgy, 1);
