@@ -76,7 +76,8 @@ my %data;
 my %config;
 my %groups;
 # scanning vars
-my ($currentchannel, $currentstart, $currentlivetime, @toscan);
+our ($currentchannel, $currentstart, $currentlivetime, @toscan);
+our $locked = 0;
 
 #$rig->set_mode($Hamlib::RIG_MODE_USB, $Hamlib::RIG_PASSBAND_NORMAL);
 #$rig->set_freq($opts{'s'} * 1000000);
@@ -157,21 +158,24 @@ if ($opts{'load'}) {
 	Verbose("scan list: ", join(", ", @toscan),"\n");
     }
 
-    while (1) {
 
-	next_scan();
+    if ($opts{'w'}) {
+	# open a window and start the scanner with it's own
+	# background timer.
 	
-	if ($opts{'w'}) {
-	    $MyApp::type = 'scan';
-	    my $app = MyApp->new(); # create
-	    $app->MainLoop();	# go
-	}
+	$MyApp::type = 'scan';
+	my $app = MyApp->new(); # create
+	$app->MainLoop();	# go
+    } else {
+	while (1) {
+	    next_scan();
 
-	# XXX: configurable sleep needed.
-	if ($currentchannel) {
-	    sleep(1);
-	} else {
-	    usleep($opts{'i'} * 1000000);
+	    # XXX: configurable sleep needed.
+	    if ($currentchannel) {
+		sleep(1);
+	    } else {
+		usleep($opts{'i'} * 1000000);
+	    }
 	}
     }
 } else {
@@ -275,6 +279,11 @@ sub next_scan {
     my $currentlevel;
 
     die "no scan list available!" if ($#toscan == -1);
+
+    if ($locked) {
+	Verbose("  Locked...\n");
+	return;
+    }
 
     #
     # see if the current channel is still active (or else forget it

@@ -12,7 +12,6 @@ our $type = 'blah';
 sub OnInit {
    my $this = @_;
    my $frame;
-   print "here: $type\n";
    if ($type) {
        $frame = MyScanner->new("Scanner",  [-1,-1], [-1,-1]);
    } else {

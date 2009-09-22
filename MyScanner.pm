@@ -32,8 +32,14 @@ sub new {
    my $grid = new Wx::GridSizer(2,3);
 
    my $button;
-   $grid->Add($button = Wx::Button->new($panel, 1, 'test'));
-   EVT_BUTTON($this, 1,     sub { print STDERR "hi! $_[0] $_[1] $_[2]\n";});
+   $grid->Add($button = Wx::Button->new($panel, 1, 'Lock            '));
+   $this->{'lockbutton'} = $button;
+   EVT_BUTTON($this, 1, 
+	      sub {
+		  print STDERR "hi! $_[0] $_[1] $_[2]\n";
+		  $main::locked = !$main::locked;
+		  $_[0]->{'lockbutton'}->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
+		});
    $panel->SetSizer($grid);
 #   Centre();
 
@@ -72,7 +78,8 @@ sub new {
 }
 
 sub on_timer {
-    print STDERR "Time!\n $_[0] $_[1] $_[2]\n";
+#    print STDERR "Time! $_[0] $_[1] $_[2]\n";
+    main::next_scan();
 }
 
 
