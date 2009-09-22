@@ -360,7 +360,7 @@ sub next_scan {
 	    # if the current channel is active and is a higher
 	    # priority, then skip this one.
 	    next if ($currentchannel &&
-		     $config{$key}{'priority'} <=
+		     $config{$key}{'priority'} >
 		     $config{$currentchannel}{'priority'});
 
 	    # if we've checked it recently enough, don't do again
@@ -651,14 +651,14 @@ How often (in seconds) to check the channel for traffic.
 
 =item priority
 
-Higher numbered priorities will be considered more important; lower
-number priorities will not be searched at all until the higher number
-priorities are completely silent.
+Lowered numbered priorities will be considered more important; higher
+number priorities will not be searched at all until the lower number
+priorities are completely silent (longer than their hangtime).
 
-(useful tip: set your local faviorite radio station (e.g. NPR) to
-priority 1 and everything else higher than that; it'll ensure you're
-always listening to at least something while it's scanning around your
-other defined channels).
+(useful tip: set your local faviorite radio station (e.g. NPR or rock
+station) to priority 10000 and everything else lower than that; it'll
+ensure you're always listening to at least something while it's
+scanning around your other defined channels).
 
 =item interval
 
@@ -714,14 +714,14 @@ If you have some perl modules in a non-standard directory:
   # default channel options
   #
   default: mode=FM
-  default: priority=10
-  default: checkevery=10
+  default: priority=100
+  default: checkevery=5
   default: hangtime=5
 
   #
   # Repeaters
-  #
-  repeater1   : 147.000,tone=100,priority=20
+  # (repeater1 is a favorite and has a lower priority)
+  repeater1   : 147.000,tone=100,priority=50,checkevery=1
   repeater2   : 147.195,tone=123
 
   group repeaters: repeater1, repeater2
@@ -738,7 +738,8 @@ If you have some perl modules in a non-standard directory:
   #
   # A few FRS Frequencies
   #
-  default: priority=2
+  default: priority=2000
+  default: checkevery=10
   FRS1  :462.625
   FRS2  :462.875
   FRS3  :462.125
@@ -749,7 +750,7 @@ If you have some perl modules in a non-standard directory:
   # FM Radio Stations
   #
   # my favorite radio channel
-  KXJZ: 90.9
+  KXJZ: 90.9,priority=10000
 
   #
   # Combining a few groups
@@ -760,6 +761,21 @@ If you have some perl modules in a non-standard directory:
 
   # add in a radio station to always fall back on
   group alwayson: daily, KXJZ
+
+With the above, you can scan various groups of channels easily:
+
+  Scans just the simplex and repeaters
+  # cq -scan daily
+
+  Adds in a radio station to fall back to so it's always playing something:
+  # cq -scan alwayson
+
+  Maybe we want to check the FRS channels before falling back to the
+  radio station (remember the FRS had a lower priority so it'll be
+  picked in preferenc to the KXJZ station).
+  # cq -scan alwayson,FRS
+
+
 
 =head1 AUTHOR
 
