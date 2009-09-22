@@ -6,6 +6,7 @@ use ExtUtils::MakeMaker;
 
 %opts = (
 	 'NAME'		=> 'cq',
+	 'PMLIBDIRS'    => ['CQ'], 
 	 'PREREQ_PM'    => { Hamlib => 0,
 			     Wx => 0},
 	 'EXE_FILES'    => [qw(cq)],
