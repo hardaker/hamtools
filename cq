@@ -21,6 +21,7 @@ our %defopts = (
 
 		time => 10,
 		hangtime => 3,
+		keephistory => 600,
 	       );
 
 #
@@ -383,6 +384,10 @@ sub start_history {
     my ($channel, $time, $label) = @_;
     $time = time() if (!$time);
     $label = "" if (!$label);
+    while ($#{$config{$channel}{'history'}} > -1 &&
+	   $time - $config{$channel}{'history'}[0][1] > $opts{'keephistory'}) {
+	shift @{$config{$channel}{'history'}};
+    }
     push @{$config{$channel}{'history'}}, [$label, $time];
 }
 
@@ -485,39 +490,35 @@ sub next_scan {
     my $label = get_history_label($currentchannel);
     foreach my $key (@toscan) {
 
+	my $checkevery = $config{$key}{'checkevery'} || $opts{'time'};
+
 	next if ($key eq $currentchannel);
 
-	# if it has been long enough based on config, check it
-	if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
+	# if disabled, forget it
+	next if ($config{$key}{'enabled'} eq 'false');
 
-	    # if disabled, forget it
-	    next if ($config{$key}{'enabled'} eq 'false');
+	# if the current channel is active and is a higher
+	# priority, then skip this one.
+	next if ($currentchannel &&
+		 $config{$key}{'priority'} >
+		 $config{$currentchannel}{'priority'});
 
-	    # if the current channel is active and is a higher
-	    # priority, then skip this one.
-	    next if ($currentchannel &&
-		     $config{$key}{'priority'} >
-		     $config{$currentchannel}{'priority'});
+	# if we've checked it recently enough, don't do again
+	# (assuming we're listening to something, otherwise
+	# check anyway even though it's early).
+	next if ($currentchannel &&
+		 ($time - $config{$key}{'lastchecked'} < $checkevery));
 
-	    # if we've checked it recently enough, don't do again
-	    # (assuming we're listening to something, otherwise
-	    # check anyway even though it's early).
-	    next if (($config{$key}{'lastchecked'} +
-		      ($config{$next}{'checkevery'} || $opts{'time'})
-		      > $time) && $currentchannel);
-
-	    # ok, then we should definitely search it.  But we
-	    # need to pick the best one, so see if we have another
-	    # one that needs to be checked first.
-	    # XXX: optionally use priorities instead of time for sorting?
-	    if (!$next) {
-		$next = $key;
-	    } elsif ($config{$next}{'lastchecked'}
-		     + ($config{$next}{'checkevery'} || $opts{'time'}) >
-		     $config{$key}{'lastchecked'}
-		     + ($config{$key}{'checkevery'} || $opts{'time'})) {
-		$next = $key;
-	    }
+	# ok, then we should definitely search it.  But we
+	# need to pick the best one, so see if we have another
+	# one that needs to be checked first.
+	# XXX: optionally use priorities instead of time for sorting?
+	if (!$next) {
+	    $next = $key;
+	} elsif ($config{$key}{'lastchecked'} + $checkevery
+		 < $config{$next}{'lastchecked'}
+		 + ($config{$next}{'checkevery'} || $opts{'time'})) {
+	    $next = $key;
 	}
     }
 
@@ -592,7 +593,7 @@ sub next_scan {
 	return $opts{'u'}/100 if ($next && $scancount > 0);
 
 	$scancount = 0;
-	set_channel($currentchannel, 0, $label);
+	set_channel($currentchannel, 0, $label) if ($label);
 	return 1; # XXX: make configurable
     } else {
 	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
