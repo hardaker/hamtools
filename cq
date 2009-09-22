@@ -28,8 +28,10 @@ GetOptions(\%opts,
 	   ["samples=s",           "Samples to take"],
 	   ["l|minimum-level=s",   "Minimum signal level to be reported"],
 
-	   ["state=s",             "store state in file\n"],
-           ["load=s",              "load state from file; don't rescan\n"],
+	   ["state=s",             "store state in file"],
+           ["load=s",              "load state from file; don't rescan"],
+
+	   ["scan=s",              "Scan this definition set"],
 
 	   ["GUI:separator",   "Hamlib Controls:"],
 	   ["P|port=s",        "Port to use (/dev/ttyS0)"],
@@ -39,6 +41,7 @@ GetOptions(\%opts,
 	   ["GUI:separator",   "Setup options:"],
 	   ["c|config",        "Config file to load"],
 	   ["test",            "Test retunning speed of the receiver"],
+	   ["test-freqs=s",      "Set the starting and various frequencies to jump to"],
 
 	   ["GUI:separator",   "Output Controls:"],
 	   ["g|gnuplot=s",     "gnuplot data file"],
@@ -66,30 +69,44 @@ my %config;
 read_config($opts{'c'});
 
 if ($opts{'test'}) {
-    $rig->set_freq(14.250 * 1000000);
+    my $startfreq = 14.250;
+    my @jumpvalues = qw(.001 .00001 .25);
+    if ($opts{'test-freqs'}) {
+	($startfreq, @jumpvalues) = split(/,/,$opts{'test-freqs'});
+    }
+
+    $rig->set_freq($startfreq * 1000000);
+    sleep(1);
 
     my $max = 0;
-    foreach my $delta (qw( .001 .00001 .25)) {
+    foreach my $delta (@jumpvalues) {
 	my $value = 0;
-	print "setting to 14.250\n";
-	$rig->set_freq(14.250 * 1000000);
+	print "setting to $startfreq\n";
+	$rig->set_freq($startfreq * 1000000);
 	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
-	print "immediate value: $value\n";
+	print "  immediate value: $value\n";
 	usleep(.5 * 1000000);
 	$value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
-	print "initial value: $value\n";
+	print "  initial value: $value\n";
 	$value = 0;
-	print "setting to " . (14.250+$delta) . "\n";
-	$rig->set_freq((14.250+$delta) * 1000000);
+	print "  setting to " . ($startfreq+$delta) . "\n";
+	$rig->set_freq(($startfreq+$delta) * 1000000);
+	my $count = 0;
+	$value = -54;
+	my $prevvalue;
 	my $startedat = [gettimeofday];
 	while ($value < -32) {  # kinda arbitrary
+	    $prevvalue = $value;
 	    $value = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
+	    $count++;
+	    usleep(.00005 * 1000000);
 	}
+	print "  final value: $value (was $value; $count polls to change)\n";
 	my $diff = tv_interval($startedat, [gettimeofday]);
-	print "$delta change => $diff\n";
+	print "  $delta change => $diff\n";
 	$max = ($max > $diff) ? $max : $diff;
     }
-    printf("\nRecommended -i setting: %f\n",$max*5);
+    printf("\nRecommended -i setting: %f (which is 5 * $max)\n",$max*5);
 
     exit;
 }
