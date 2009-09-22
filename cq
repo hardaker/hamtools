@@ -274,11 +274,11 @@ if ($opts{'load'}) {
     }
 }
 
-    if ($opts{'state'}) {
-	open(O,">$opts{'state'}");
-	print O Dumper(\%data);
-	close(O);
-    }
+if ($opts{'state'}) {
+    open(O,">$opts{'state'}");
+    print O Dumper(\%data);
+    close(O);
+}
 
 my @keys = sort keys(%data);
 my @sortedbylevel = sort { $data{$b} <=> $data{$a} } @keys;
@@ -365,14 +365,10 @@ sub get_frequency {
     return $rig->get_freq() / 1000000;
 }
 
-our $set_channel_callback;
-
 sub set_current_channel {
     my ($newchannel) = @_;
     $currentchannel = $newchannel;
-    if (ref($set_channel_callback) eq 'CODE') {
-	$set_channel_callback->($newchannel);
-    }
+    call_hooks('set_current_channel', $newchannel);
 }
 
 sub set_channel {

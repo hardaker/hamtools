@@ -367,7 +367,7 @@ sub new {
    my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
    $mainpanel = $this;
 
-   $main::set_channel_callback = \&OnChangeChannel;
+   main::register_hook('set_current_channel', \&OnChangeChannel);
 
    #
    #   replace the filename with something appropriate.
