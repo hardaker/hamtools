@@ -1,0 +1,11 @@
+#
+# to recreate MANIFEST:
+# perl -e 'use ExtUtils::Manifest qw(mkmanifest); mkmanifest();'
+#
+.*\.gz$
+.*~$
+.*.(bak|orig|old)$
+blib
+pm_to_blib
+Makefile$
+
