@@ -21,10 +21,24 @@ use IO::File;
 use Wx::Event ;
 our @ISA=qw(Wx::Frame);
 
-my $lockbutton;
 my $mainpanel;
 my $subpanel;
 my $grid;
+
+sub load_buttons {
+   my $channelid = 2000;
+   foreach my $channel (@main::toscan) {
+       $main::config{$channel}{'button'} =
+	 Wx::Button->new($subpanel, $channelid, $channel);
+       my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
+       $main::config{$channel}{'button'}->SetFont($font);
+       $grid->Add($main::config{$channel}{'button'});
+       $main::config{$channel}{'button'}{'channel'} = $channel;
+       EVT_BUTTON($main::config{$channel}{'button'}, $channelid,
+		  \&channel_button);
+       $channelid++;
+   }
+}
 
 sub channel_button {
     my ($channelb, $event) = @_;
@@ -62,21 +76,21 @@ sub OnEnable {
     }
 }
 
+sub OnGroup {
+    my ($group) = $_[0];
+    main::load_group($group);
+    $grid->Clear(1);
+    load_buttons();
+    $subpanel->SetSizerAndFit($grid);
+    $main::currentchannel = '';
+}
+
 sub set_channel_button {
     my ($channel, $ifont, $bfont) = @_;
     $ifont = wxNORMAL if (!$ifont);
     $bfont = wxNORMAL if (!$bfont);
     my $font = Wx::Font->new( 8, wxROMAN, $ifont, $bfont);
     $main::config{$channel}{'button'}->SetFont($font);
-}
-
-sub OnGrid {
-    print "setting to 1\n";
-    $mainpanel->SetAutoLayout(1);
-    $subpanel->SetAutoLayout(1);
-    $grid->SetRows(4);
-    $subpanel->SetSizerAndFit($grid);
-    $subpanel->Fit();
 }
 
 sub new {
@@ -98,26 +112,11 @@ sub new {
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
 #   $mfile->AppendSeparator();
-   $mfile->Append($MENU_GRID, "&Grid\tCtrl-G", "Change the grid");
 
    my($mbar) = Wx::MenuBar->new();
    $mbar->Append($mfile, "&Commands");
    $this->SetMenuBar($mbar);
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
-   EVT_MENU($this, $MENU_GRID, \&OnGrid);
-
-   my $channelid = 2000;
-   foreach my $channel (@main::toscan) {
-       $main::config{$channel}{'button'} =
-	 Wx::Button->new($subpanel, $channelid, $channel);
-       my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
-       $main::config{$channel}{'button'}->SetFont($font);
-       $grid->Add($main::config{$channel}{'button'});
-       $main::config{$channel}{'button'}{'channel'} = $channel;
-       EVT_BUTTON($main::config{$channel}{'button'}, $channelid,
-		  \&channel_button);
-       $channelid++;
-   }
 
    my $enableid = 4000;
    my($menable) = Wx::Menu->new(undef, wxMENU_TEAROFF);
@@ -128,13 +127,17 @@ sub new {
    }
    $mbar->Append($menable, "&Enable/Disable");
 
-   $grid->Add($lockbutton = Wx::Button->new($subpanel, 1, 'Lock            '));
-   $this->{'lockbutton'} = $lockbutton;
-   EVT_BUTTON($this, 1, 
-	      sub {
-		  $main::locked = !$main::locked;
-		  $_[0]->{'lockbutton'}->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
-		});
+   my $groupid = 4500;
+   my($mgroup) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   foreach my $group (sort keys(%main::groups)) {
+       $mgroup->Append($groupid, "$group", "");
+       EVT_MENU($this, $groupid, sub {OnGroup($group);});
+       $groupid++;
+   }
+   $mbar->Append($mgroup, "&Group");
+
+   load_buttons();
+
    $subpanel->SetSizerAndFit($grid);
 #   Centre();
 
@@ -158,7 +161,6 @@ sub on_timer {
 	    my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxBOLD);
 	    $main::config{$main::currentchannel}{'button'}->SetFont($font);
 	}
-	$lockbutton->SetLabel(($main::locked ? "Unlock" : "Lock") . " $main::currentchannel");
     }
     my $timer = Wx::Timer->new($mainpanel, 1000);
     $timer->Start(($sleeptime > .01 ? $sleeptime : .01) * 1000, 1);

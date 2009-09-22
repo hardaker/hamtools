@@ -146,6 +146,12 @@ sub find_group_members {
     return @ret;
 }
 
+sub load_group {
+    my ($group) = @_;
+    @toscan = find_group_members(split(/,\s*/,uc($group)));
+    Verbose("scan list: ", join(", ", @toscan),"\n");
+}
+
 #
 # Load previous state
 #
@@ -159,8 +165,7 @@ if ($opts{'load'}) {
 } elsif ($opts{'scan'}) {
     @toscan = keys(%config);
     if ($opts{'scan'} ne 1) {
-	@toscan = find_group_members(split(/,\s*/,uc($opts{'scan'})));
-	Verbose("scan list: ", join(", ", @toscan),"\n");
+	load_group($opts{'scan'});
     }
 
 
