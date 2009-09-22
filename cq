@@ -198,6 +198,14 @@ if ($opts{'load'}) {
     %data = %$var;
 
 #
+# just set a particular frequency
+#
+} elsif ($opts{'set'}) {
+    Verbose("Setting channel to $opts{'set'}\n");
+    set_channel($opts{'set'});
+    exit;
+
+#
 # Scanning
 #
 } elsif ($opts{'scan'}) {
@@ -319,19 +327,25 @@ if ($opts{'w'}) {
 }
 
 sub set_channel {
-    my ($channel) = @_;
+    my ($channel, $justbasics) = @_;
     die "no channel to switch to" if (!$channel);
+    $channel = uc($channel);
+
+    # set the frequency
     my $freq = $config{$channel}{'currentfrequency'}
       || $config{$channel}{'frequency'};
     $rig->set_freq($freq * 1000000);
-    $rig->set_ctcss_tone($config{$channel}{'tone'} * 10)
-      if ($config{$channel}{'tone'});
-    $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
-      if ($config{$channel}{'dcs'});
     $rig->set_mode($modes{$config{$channel}{'mode'}},0)
       if ($config{$channel}{'mode'});
     $currentchannel = $channel;
     $currentstart = time();
+
+    return if ($justbasics);
+
+    $rig->set_ctcss_tone($config{$channel}{'tone'} * 10)
+      if ($config{$channel}{'tone'});
+    $rig->set_dcs_code($config{$channel}{'dcs'} * 10)
+      if ($config{$channel}{'dcs'});
 }
 
 my $scancount = 0;
