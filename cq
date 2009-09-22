@@ -444,8 +444,16 @@ sub next_scan {
     die "no scan list available!" if ($#toscan == -1);
 
     if ($locked) {
-	Verbose("  Locked...\n");
-	return 1;
+	if ($config{$currentchannel}{'locktimer'} &&
+	    $config{$currentchannel}{'locktimer'} < $time) {
+	    # unlock after so long
+	    Verbose("  Auto unlocking\n");
+	    $locked = 0;
+	    delete $config{$currentchannel}{'locktimer'};
+	} else {
+	    Verbose("  Locked...\n");
+	    return 1;
+	}
     }
 
     # determine the number of channels to scan at once

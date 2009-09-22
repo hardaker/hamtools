@@ -174,6 +174,15 @@ sub popup_channel_menu {
     EVT_MENU($menu, $menuid, sub { $main::config{$channel}{'frequency'} = 
 				     main::get_frequency() });
 
+    my($lockmenu) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+    foreach my $locktime (qw(.5 1 2 3 4 5 10 20 30 60)) {
+	$lockmenu->Append(++$menuid, "$locktime", "");
+	EVT_MENU($lockmenu, $menuid, sub {
+		     lock_channel($channel, 60*$locktime)
+		 });
+    }
+    $menu->AppendSubMenu($lockmenu, "&Lock for N minutes ...");
+
     $item = $menu->Append(++$menuid, "Disable all channels above this one");
     EVT_MENU($menu, $menuid, sub { OnDisableAbove($channel) });
 
@@ -226,6 +235,20 @@ sub load_buttons {
    $grid->SetSizeHints($mainpanel);
 }
 
+sub lock_channel {
+    my ($channel, $timer) = @_;
+    # lock to a channel
+    main::set_channel($channel,0,'locked');
+    set_channel_button($channel, wxNORMAL, wxBOLD);
+    set_button_text($channel, "(L) %s");
+    $main::locked = 1;
+    if ($timer) {
+	$main::config{$channel}{'locktimer'} = time() + $timer;
+    }
+    main::Verbose("locking to $channel\n");
+}
+
+
 sub channel_button {
     my ($channelb, $event) = @_;
     set_channel_button($main::currentchannel) if ($main::currentchannel);
@@ -234,11 +257,7 @@ sub channel_button {
 	# unlock
 	$main::locked = 0;
     } else {
-	# lock to a channel
-	main::set_channel($channelb->{'channel'},0,'locked');
-	set_channel_button($channelb->{'channel'}, wxNORMAL, wxBOLD);
-	set_button_text($channelb->{'channel'}, "(L) %s");
-	$main::locked = 1;
+	lock_channel($channelb->{'channel'});
     }
 
 }
