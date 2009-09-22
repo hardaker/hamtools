@@ -116,11 +116,23 @@ if ($opts{'test'}) {
     exit;
 }
 
+#
+# Load previous state
+#
 if ($opts{'load'}) {
     my $var = do "$opts{'load'}";
     %data = %$var;
+
+#
+# Scanning
+#
 } elsif ($opts{'scan'}) {
     my $currentchannel;
+
+    my @toscan = keys(%config);
+    if ($opts{'scan'} ne 1) {
+	@toscan = split(/,\s*/,uc($opts{'scan'}));
+    }
 
     while (1) {
 
@@ -134,7 +146,7 @@ if ($opts{'load'}) {
 	my $next = "";
 
 	# find the next channel to look for.
-	foreach my $key (keys(%config)) {
+	foreach my $key (@toscan) {
 
 	    # if it has been long enough based on config, check it
 	    if ($config{$key}{'lastchecked'} < $time + ($config{$key}{'checkevery'} || $opts{'time'})) {
@@ -148,7 +160,12 @@ if ($opts{'load'}) {
 			 $currentlevel > $opts{'l'} && 
 			 $config{$key}{'priority'} <=
 			 $config{$currentchannel}{'priority'});
-		
+
+		# if we've checked it recently enough, don't do again
+		next if ($config{$key}{'lastchecked'} +
+			 ($config{$next}{'checkevery'} || $opts{'time'}) >
+			 $time);
+
 		# ok, then we should definitely search it.  But we
 		# need to pick the best one, so see if we have another
 		# one that needs to be checked first.
@@ -166,11 +183,31 @@ if ($opts{'load'}) {
 
 	# now that we've found one to check...
 	if ($next) {
+	    my $frequency;
+
+	    # normal channel or frequency range?
+	    if ($config{$next}{'endfrequency'}) {
+		# we're scanning a whole range; take the next step forward
+		if ($config{$next}{'currentfrequency'}) {
+		    $frequency = $config{$next}{'currentfrequency'} +
+		      $config{$next}{'interval'} || $opts{'i'};
+		    if ($frequency > $config{$next}{'endfrequency'}) {
+			$frequency = $config{$next}{'startfrequency'};
+		    }
+		} else {
+		    $frequency = $config{$next}{'startfrequency'};
+		}
+		$config{$next}{'currentfrequency'} = $frequency;
+	    } else {
+		# just a single channel
+		$frequency = $config{$next}{'frequency'};
+	    }
+
 	    # what to check next?
-	    Verbose("  checking $next (pri=$config{$next}{'priority'} at $config{$next}{'frequency'})\n");
+	    Verbose(sprintf("  checking %-12s (pri=%-4d at $frequency)\n", $next, $config{$next}{'priority'}));
 
 	    # change the frequency and potentially the mode
-	    $rig->set_freq($config{$next}{'frequency'} * 1000000);
+	    $rig->set_freq($frequency * 1000000);
 	    # XXX: mode
 
 	    # sleep the scan time length
@@ -188,6 +225,7 @@ if ($opts{'load'}) {
 		# remember this one as the new "best"
 		$currentchannel = $next;
 		Verbose("current: $currentchannel\n");
+		# XXX: set CTSS
 	    } else {
 		# fall back to the previous lower priority channel
 
@@ -419,11 +457,17 @@ sub read_config {
 	} elsif (/^\s*(\w+):\s*([^,]+),*(.*)/) {
 	    my $parts;
 	    %$parts = %defaults;
-	    $config{$1} = $parts;
+	    my $name = uc($1);
+	    $config{$name} = $parts;
 	    $parts->{'frequency'} = $2;
 	    foreach my $data (split(/,\s*/,$3)) {
 		my ($left, $right) = split(/\s*=\s*/, $data);
 		$parts->{$left} = $right;
+	    }
+
+	    if ($parts->{'frequency'} =~ /(.*)-(.*)/) {
+		$parts->{'startfrequency'} = $1;
+		$parts->{'endfrequency'} = $2;
 	    }
 	} else {
 	    Error("Error in config file on line $line");
