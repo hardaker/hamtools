@@ -378,6 +378,9 @@ sub next_scan {
 	    Verbose(sprintf("current: -- $currentchannel ended: %ds --\n",
 			    $currentlivetime-$currentstart));
 	    $currentchannel = '';
+	} else {
+	    # it's still "active" and thus we should stop looking here
+	    last;
 	}
 
 	if ($currentlevel > $opts{'l'}) {
@@ -485,7 +488,7 @@ sub next_scan {
 	$config{$next}{'lastchecked'} = time();
     }
 
-    if ($currentchannel) {
+    if ($currentchannel ne '') {
 	# if we're doing more than one at once, return a small
 	# fraction since we've already waited the minimum on the
 	# current channel.
