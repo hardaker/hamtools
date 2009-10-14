@@ -112,7 +112,8 @@ LocalGetOptions(\%opts,
 	   ["GUI:separator",   "Output Controls:"],
 	   ["g|gnuplot=s",     "gnuplot data file"],
 	   ["G|graphic=s",     "png data output"],
-	   ["w",                "create an output window"],
+	   ["w",               "create an output window"],
+	   ["W|window=s",      "Create a window of type STRING"],
 
 	   ["nogui", "Don't show the gui"],
 	  ) || die "bad arguments";
@@ -249,11 +250,9 @@ if ($opts{'load'}) {
     if ($opts{'w'}) {
 	# open a window and start the scanner with it's own
 	# background timer.
-	
-	require CQ::App;
-	$CQ::App::type = 'scan';
-	my $app = CQ::App->new(); # create
-	$app->MainLoop();	# go
+	create_window_app('Scanner');
+    } elsif ($opts{'W'}) {
+	create_window_app($opts{'W'});
     } else {
 	while (1) {
 	    usleep(next_scan() * 1000000);
@@ -328,6 +327,14 @@ if ($opts{'w'}) {
     binmode G;
     print G $im->png;
     close(G);
+}
+
+sub create_window_app {
+    my ($type) = @_;
+    require CQ::App;
+    $CQ::App::type = $type;
+    my $app = CQ::App->new();	# create
+    $app->MainLoop();		# go
 }
 
 sub create_freq_graph {

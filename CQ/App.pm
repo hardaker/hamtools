@@ -12,19 +12,20 @@ use CQ::Spectrum;
 our $type = 'blah';
 
 sub OnInit {
-   my $this = @_;
+   my ($this) = @_;
    my $frame;
-   if ($type) {
-       $frame = CQ::Scanner->new("CQ: Scanner",  [-1,-1], [-1,-1]);
-   } else {
-       $frame = CQ::Spectrum->new( "CQ: Spectrum Plot", [-1,-1], [-1,-1]);
+   my $haveit = eval "require CQ::$type";
+   if (!$haveit) {
+       die "whoops...  Can't find a window of type $CQ::$type\n  $@\n";
    }
+   $frame = eval "CQ::$type->new()";
    #my $this->{FRAME}=$frame;
    unless ($frame) {
        print "unable to create frame -- exiting."; 
-       return undef;
+       exit 1;
    }
    $frame->Show( 1 );
    1;
 }
 
+1;

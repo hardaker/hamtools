@@ -20,7 +20,7 @@ our @ISA=qw(Wx::Frame);
 
 sub new {
    my $class = shift;
-   my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
+   my $this = $class->SUPER::new( undef, -1, "CQ: Spectrum", [-1,-1], [-1,-1]);
    #
    #   replace the filename with something appropriate.
    #

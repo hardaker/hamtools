@@ -366,7 +366,7 @@ sub OnChangeChannel {
 
 sub new {
    my $class = shift;
-   my $this = $class->SUPER::new( undef, -1, $_[0], $_[1], $_[2] );
+   my $this = $class->SUPER::new( undef, -1, "CQ: Scanner", [-1,-1], [-1,-1]);
    $mainpanel = $this;
 
    main::register_hook('set_current_channel', \&OnChangeChannel);
