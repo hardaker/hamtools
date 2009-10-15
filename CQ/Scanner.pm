@@ -120,8 +120,7 @@ sub OnScanPlot {
 
 sub OnTuner {
     use CQ::Tuner;
-    my $frame = CQ::Tuner->new("Tuner",
-			       [-1,-1], [-1,-1]);
+    my $frame = CQ::Tuner->new();
     unless ($frame) {
 	print "unable to create tuner frame -- exiting."; 
 	exit(1);
