@@ -5,6 +5,8 @@ use Time::HiRes qw(usleep gettimeofday tv_interval);
 use Data::Dumper;
 use IO::File;
 use DynaLoader;
+use POE;
+use POE::Loop::Wx;
 
 our $VERSION = '0.5';
 
@@ -334,7 +336,7 @@ sub create_window_app {
     require CQ::App;
     $CQ::App::type = $type;
     my $app = CQ::App->new();	# create
-    $app->MainLoop();		# go
+    POE::Kernel->loop_run();
 }
 
 sub create_freq_graph {
@@ -361,7 +363,7 @@ sub create_freq_graph {
 if ($opts{'w'}) {
     require CQ::App;
     my $app = CQ::App->new();	# create
-    $app->MainLoop();		# go
+    POE::Kernel->loop_run();
 }
 
 sub get_level {
