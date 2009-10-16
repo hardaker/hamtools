@@ -361,6 +361,7 @@ sub OnChangeChannel {
     } else {
 	$mainpanel->SetTitle("CQ: Scanning");
     }
+    change_channel($channel);
 }
 
 sub new {
@@ -472,20 +473,20 @@ sub OnEnableScanner {
 #    start_timer(.1) if ($scanenabled);
 }
 
-sub on_timer {
-    my $oldchannel = $main::currentchannel;
-#    my $sleeptime = main::next_scan();
-    if ($main::currentchannel ne $oldchannel) {
+my $oldchannel;
+sub change_channel {
+    my $newchannel = $_[0];
+    if ($newchannel ne $oldchannel) {
 	if ($oldchannel) {
 	    my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
 	    $main::config{$oldchannel}{'button'}->SetFont($font);
 	}
-	if ($main::currentchannel) {
+	if ($newchannel) {
 	    my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxBOLD);
-	    $main::config{$main::currentchannel}{'button'}->SetFont($font);
+	    $main::config{$newchannel}{'button'}->SetFont($font);
 	}
     }
-#    start_timer($sleeptime);
+    $oldchannel = $newchannel;
     $mainpanel->Update();
 }
 
