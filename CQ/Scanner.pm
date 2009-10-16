@@ -15,7 +15,7 @@ use strict;
 #
 use Wx qw(wxWidth wxHeight wxLeft wxTop wxDefaultPosition wxDefaultSize wxID_CANCEL wxCentreX wxCentreY);
 use Wx::Event qw(:everything);
-use Wx::Timer;
+#use Wx::Timer;
 
 #
 #   Wx::Image loads the Image control and all of the Image handlers.
@@ -459,9 +459,9 @@ sub new {
    $subpanel->SetSizerAndFit($grid);
 #   Centre();
 
-   my $timer = Wx::Timer->new($this, 1000);
-   $timer->Start(1000, 1);
-   $this->EVT_TIMER($timer, \&on_timer);
+#   my $timer = Wx::Timer->new($this, 1000);
+#   $timer->Start(1000, 1);
+#   $this->EVT_TIMER($timer, \&on_timer);
 #   $this->Connect(1000, -1, -1, \&on_timer);
 
    $this;  # return the frame object to the calling application.
@@ -469,12 +469,12 @@ sub new {
 
 sub OnEnableScanner {
     $scanenabled = !$scanenabled;
-    start_timer(.1) if ($scanenabled);
+#    start_timer(.1) if ($scanenabled);
 }
 
 sub on_timer {
     my $oldchannel = $main::currentchannel;
-    my $sleeptime = main::next_scan();
+#    my $sleeptime = main::next_scan();
     if ($main::currentchannel ne $oldchannel) {
 	if ($oldchannel) {
 	    my $font = Wx::Font->new( 8, wxROMAN, wxNORMAL, wxNORMAL);
@@ -485,7 +485,7 @@ sub on_timer {
 	    $main::config{$main::currentchannel}{'button'}->SetFont($font);
 	}
     }
-    start_timer($sleeptime);
+#    start_timer($sleeptime);
     $mainpanel->Update();
 }
 

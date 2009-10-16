@@ -243,11 +243,21 @@ if ($opts{'load'}) {
 # Scanning
 #
 } elsif ($opts{'scan'}) {
+
     @toscan = keys(%config);
     if ($opts{'scan'} ne 1) {
 	load_group($opts{'scan'});
     }
 
+
+    # start the scanner
+    POE::Session->create(
+			 inline_states =>
+			 {
+			  _start => sub { $_[KERNEL]->delay(next_scan => 1); },
+			  next_scan => \&next_scan,
+			 }
+			);
 
     if ($opts{'w'}) {
 	# open a window and start the scanner with it's own
@@ -256,10 +266,9 @@ if ($opts{'load'}) {
     } elsif ($opts{'W'}) {
 	create_window_app($opts{'W'});
     } else {
-	while (1) {
-	    usleep(next_scan() * 1000000);
-	}
+	POE::Kernel->run();
     }
+    exit;
 } else {
     for (my $freq = $opts{'s'}; $freq <= $opts{'e'}; $freq += $opts{'i'}) {
 	$rig->set_freq($freq * 1000000);
@@ -474,6 +483,7 @@ sub next_scan {
     my $time = time();
     my $next;
     my $currentlevel;
+    my $kernel = $_[KERNEL];
 
     die "no scan list available!" if ($#toscan == -1);
 
@@ -486,7 +496,8 @@ sub next_scan {
 	    delete $config{$currentchannel}{'locktimer'};
 	} else {
 	    Verbose("  Locked...\n");
-	    return 1;
+	    $kernel->delay(next_scan => 1);
+	    return;
 	}
     }
 
@@ -688,13 +699,17 @@ sub next_scan {
 	# if we're doing more than one at once, return a small
 	# fraction since we've already waited the minimum on the
 	# current channel.
-	return $opts{'u'}/100 if ($next && $scancount > 0);
+
+	if ($next && $scancount > 0) {
+	    $kernel->delay(next_scan => $opts{'u'});
+	    return;
+	}
 
 	$scancount = 0;
 	set_channel($currentchannel, 0, $label) if ($label);
-	return $opts{'sleep'}; # XXX: make configurable
+	$kernel->delay(next_scan => $opts{'sleep'});
     } else {
-	return .0001; # XXX: make configurable (1ms minimum for Wx; 10ms pause)
+	$kernel->delay(next_scan => '.0001'); # XXX: yield instead?
     }
 }
 
