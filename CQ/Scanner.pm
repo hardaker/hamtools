@@ -108,8 +108,7 @@ sub OnScanPlot {
     use CQ::ShowImage;
     my ($channel) = @_;
     my $frame = CQ::ShowImage->new("/tmp/cqb.png", \&generate_history_plot,
-				   "Scanner Timing",
-				   [-1,-1], [-1,-1]);
+				   "Scanner Timing";
     unless ($frame) {
 	print "unable to create scanning frame -- exiting."; 
 	exit(1);
