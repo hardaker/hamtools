@@ -29,7 +29,6 @@ sub load_imgfile {
     $heap->{'updatefn'}->();
 
     # create the image from the imgfile
-    print "here: $heap->{'imgfile'}\n";
     my $file = IO::File->new( $heap->{'imgfile'}, "r" );
     die "can't load $heap->{'imgfile'}\n"  if (!$file);
     binmode $file;
