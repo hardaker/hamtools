@@ -2,6 +2,7 @@ package CQ::ShowImage;
 
 our $VERSION = "0.4";
 
+use POE;
 use vars qw(@ISA);
 use strict;
 #
@@ -17,18 +18,31 @@ use IO::File;
 use Wx::Event ;
 our @ISA=qw(Wx::Frame);
 
+my $updatetime = 5;
+
 sub load_imgfile {
-    my ($self) = @_;
-    $self->{'updatefn'}->();
-    my $file = IO::File->new( $self->{'imgfile'}, "r" );
-    die "can't load $self->{'imgfile'}\n"  if (!$file);
+    my ($kernel, $heap) = @_[KERNEL, HEAP];
+
+    return if ($heap->{'stop'});
+
+    # run the function to update stuff
+    $heap->{'updatefn'}->();
+
+    # create the image from the imgfile
+    print "here: $heap->{'imgfile'}\n";
+    my $file = IO::File->new( $heap->{'imgfile'}, "r" );
+    die "can't load $heap->{'imgfile'}\n"  if (!$file);
     binmode $file;
     my $handler = Wx::PNGHandler->new();
-    #my $image = Wx::Image->new();
-    $handler->LoadFile( $self->{'image'}, $file );
+    $handler->LoadFile( $heap->{'image'}, $file );
+
     # XXX: don't create new bitmap below but update old?
-    $self->{'bitmap'} = Wx::Bitmap->new($self->{'image'});
-    $self->{'staticbm'}->SetBitmap($self->{'bitmap'});
+    $heap->{'bitmap'} = Wx::Bitmap->new($heap->{'image'});
+    $heap->{'staticbm'}->SetBitmap($heap->{'bitmap'});
+    $heap->{'staticbm'}->Refresh();
+#    $heap->{'bitmap'}->Refresh();
+    $heap->{'this'}->Refresh();
+    $kernel->delay(load_imgfile => $updatetime);
 }
 
 sub new {
@@ -75,18 +89,36 @@ sub new {
 #    $b1->height->PercentOf( $this, wxHeight, 100);
 #    $this->{ImageViewer}->SetConstraints($b1);
 
+   my $stopfn;
    if ($updatefn) {
        # repeatedly call the update function once every ...  err
        # hardcoded 5 secends.
 
-       my $timer = Wx::Timer->new($this, 1500);
-       $timer->Start(5000);
-       $this->EVT_TIMER($timer, \&load_imgfile);
-       $this->{'updatefn'} = $updatefn;
-       $this->{'imgfile'} = $imgfile;
-       $this->{'timer'} = $timer;
+       my $session =
+       POE::Session->create(
+			 inline_states =>
+			 {
+			  _start => sub {
+					  $_[HEAP]{updatefn} = $updatefn;
+					  $_[HEAP]{imgfile} = $imgfile;
+					  $_[HEAP]{this} = $this;
+					  $_[HEAP]{bitmap} = $this->{'bitmap'};
+					  $_[HEAP]{widget} = $widget;
+					  $_[HEAP]{staticbm} =
+					    $this->{'staticbm'};
+					  $_[HEAP]{'image'} = $this->{'image'};
+					  $_[HEAP]{'grid'} = $grid;
+
+					  $_[KERNEL]->yield('load_imgfile');
+				      },
+			  load_imgfile => \&load_imgfile,
+			  stop => sub { $_[HEAP]{'stop'} = 1; print "stopping\n";},
+			 }
+			);
+       $stopfn = $session->postback('stop');
    }
 
+   $this->{'stopfn'} = $stopfn;
    EVT_CLOSE($this, \&closit);
 
    $this;  # return the frame object to the calling application.
@@ -99,7 +131,7 @@ sub update_pixmap {
 }
 
 sub closit {
+    $_[0]->{'stopfn'}->() if ($_[0]->{'stopfn'});
     $_[0]->Destroy();
-    $_[0]->{'timer'}->Stop();
     return 1;
 }
