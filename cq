@@ -56,6 +56,7 @@ our @skips;
 # scanning vars
 our ($currentchannel, $currentstart, $currentlivetime, @toscan, @pastchannels);
 our $locked = 0;
+our %loadedmodules;
 
 our %modes =
   (
@@ -116,6 +117,7 @@ LocalGetOptions(\%opts,
 	   ["G|graphic=s",     "png data output"],
 	   ["w",               "create an output window"],
 	   ["W|window=s",      "Create a window of type STRING"],
+	   ["o|output-modules=s", "Load module names from STRING (comma sep)"],
 
 	   ["nogui", "Don't show the gui"],
 	  ) || die "bad arguments";
@@ -259,6 +261,13 @@ if ($opts{'load'}) {
 			 }
 			);
 
+    if ($opts{'o'}) {
+	foreach my $name (split(/,\s*/, $opts{'o'})) {
+	    $name =~ s/(.)(.*)/uc($1) . lc($2)/e;
+	    load_optional_module($name);
+	}
+    }
+
     if ($opts{'w'}) {
 	# open a window and start the scanner with it's own
 	# background timer.
@@ -338,6 +347,17 @@ if ($opts{'w'}) {
     binmode G;
     print G $im->png;
     close(G);
+}
+
+sub load_optional_module {
+    my ($type) = @_;
+    my $haveit = eval "require CQ::$type;";
+    if (!$haveit) {
+	print STDERR "Failed to load CQ::$type\n";
+	print STDERR "Error: ",$@,"\n";
+	exit 1;
+    }
+    $loadedmodules{$type} = eval "new CQ::$type;";
 }
 
 sub create_window_app {
