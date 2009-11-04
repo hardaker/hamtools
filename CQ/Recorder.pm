@@ -23,11 +23,36 @@ my $stream_flags = '';
 my $buffer = "";
 my $maxbuffers = 1000;
 
+
 #
 # shared resources
 #
-my @buffers :shared;
-my $recording :shared;
+our @buffers :shared;
+our @recorddata :shared;
+our $recording :shared;
+our $enablerecording :shared;
+
+$enablerecording = 1;
+
+our $savedir = "/home/hardaker/tmp/h/cq"; # XXX
+our $outfile;
+our $newchannel :shared;
+our $currentrecording :shared;
+
+sub open_file {
+    my ($channel) = @_;
+    close_file() if ($outfile);
+    $outfile = new IO::File;
+    $outfile->open(">$savedir/" . time() . "-" . $channel);
+    $currentrecording = $newchannel;
+    $newchannel = undef;
+}
+
+sub close_file {
+    $outfile->close();
+    $outfile = undef;
+    $currentrecording = undef;
+}
 
 sub record_it {
     print "starting up recording: $recording\n";
@@ -46,24 +71,38 @@ my $stream = $device->open_read_stream( {
 				      );
     die "ack no stream" if (!$stream);
 
-    while ($recording) {
-	print "reading: $recording\n";
+    while ($recording && $enablerecording) {
+	print "reading: $recording -- $enablerecording\n";
 	my $ok = $stream->read($buffer,$number_of_frames);
-	print "after:\n";
+
+	print "after reading:\n";
+
 	if (!$ok || length($buffer) == 0) {
 	    print "here: failed!\n";
 	    die "recording failed\n";
 	}
+
+	# push onto the interanl buffer stack
 	lock(@buffers);
 	push @buffers, $buffer;
 	if ($#buffers > $maxbuffers) {
 	    shift @buffers;
 	}
-	print "recorded: $#buffers frames\n";
+
+	# record to file
+	print "  newchannel: $newchannel\n";
+	open_file($newchannel) if ($newchannel);
+	print $outfile $buffer if ($outfile);
+
+	print "  recorded: $#buffers frames\n";
     }
+    $recording = 0;
 }
 
 sub play_everything {
+    my $enablestatus = $enablerecording;
+    $enablerecording = 0;
+    sleep(1);
     my $wstream = $wdevice->open_write_stream( {
 						channel_count => 2,
 						sample_format => 'float32'
@@ -75,17 +114,31 @@ sub play_everything {
 
     die "ack no writable stream" if (!$wstream);
 
-    my $wstream;
+    print "here: $wstream\n";
+
     lock(@buffers);
+    my $count;
     foreach my $out (@buffers) {
+	$count++;
+	my $bogus = length($out);  # gets around an odd threads::shared issue
+#	print "here ($count / $#buffers): " . length($out) . " $$wstream\n";
 	$wstream->write($out);
+    }
+    $enablerecording = $enablestatus;
+    if ($enablerecording && !$recording) {
+	# we fell out of recording so we need to restart it.
+	$recording = 1;
+	threads->create(\&record_it);
     }
 }
 
 sub record_channel {
-    my ($newchannel) = @_;
-    if ($newchannel) {
-	print "-- starting recording\n";
+    my ($incomingnewchannel) = @_;
+    if ($incomingnewchannel && $enablerecording) {
+	$newchannel = $incomingnewchannel
+	  if ($currentrecording ne $incomingnewchannel);
+	return if ($recording);
+	print "-- starting recording of $newchannel\n";
 	$recording = 1;
 	threads->create(\&record_it);
     } else {
@@ -95,7 +148,14 @@ sub record_channel {
 }
 
 sub new {
+    my $type = shift;
+    my ($class) = ref($type) || $type;
+    my $self = {};
+    %$self = @_;
+    bless($self, $class);
+
     main::register_hook('set_current_channel', \&record_channel);
+    return $self;
 }
 
 1;
