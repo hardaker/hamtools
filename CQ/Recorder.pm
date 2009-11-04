@@ -38,12 +38,22 @@ our $savedir = "/home/hardaker/tmp/h/cq"; # XXX
 our $outfile;
 our $newchannel :shared;
 our $currentrecording :shared;
+our $running :shared;
+
+sub formated_time {
+    my @t = localtime(time());
+    return sprintf("%04d-%02d-%02d-%02d:%02d:%02d",
+		   $t[5]+1900, $t[4], $t[3]+1, $t[2], $t[1], $t[0]);
+}
+
 
 sub open_file {
     my ($channel) = @_;
     close_file() if ($outfile);
+    my $filename = formated_time() . "-" . $channel;
+    print "Writing $channel to $filename\n";
     $outfile = new IO::File;
-    $outfile->open(">$savedir/" . time() . "-" . $channel);
+    $outfile->open(">$savedir/$filename");
     $currentrecording = $newchannel;
     $newchannel = undef;
 }
@@ -71,14 +81,18 @@ my $stream = $device->open_read_stream( {
 				      );
     die "ack no stream" if (!$stream);
 
-    while ($recording && $enablerecording) {
-	print "reading: $recording -- $enablerecording\n";
+    $running = 1;
+    while ($enablerecording) {
+	if (!$recording) {
+	    sleep(1);
+	    next;
+	}
+	# print "reading: $recording -- $enablerecording\n";
 	my $ok = $stream->read($buffer,$number_of_frames);
 
-	print "after reading:\n";
+	# print "after reading:\n";
 
 	if (!$ok || length($buffer) == 0) {
-	    print "here: failed!\n";
 	    die "recording failed\n";
 	}
 
@@ -90,13 +104,15 @@ my $stream = $device->open_read_stream( {
 	}
 
 	# record to file
-	print "  newchannel: $newchannel\n";
+	# print "  newchannel: $newchannel\n";
 	open_file($newchannel) if ($newchannel);
 	print $outfile $buffer if ($outfile);
 
-	print "  recorded: $#buffers frames\n";
+	# print "  recorded: $#buffers frames\n";
     }
     $recording = 0;
+    $running = 0;
+    print "exiting a thread\n";
 }
 
 sub play_everything {
@@ -121,14 +137,15 @@ sub play_everything {
     foreach my $out (@buffers) {
 	$count++;
 	my $bogus = length($out);  # gets around an odd threads::shared issue
-#	print "here ($count / $#buffers): " . length($out) . " $$wstream\n";
+	print "here ($count / $#buffers): " . length($out) . " $$wstream\n";
 	$wstream->write($out);
     }
     $enablerecording = $enablestatus;
     if ($enablerecording && !$recording) {
 	# we fell out of recording so we need to restart it.
 	$recording = 1;
-	threads->create(\&record_it);
+	print "restarting recording\n";
+	my $thread = threads->create(\&record_it);
     }
 }
 
@@ -137,13 +154,37 @@ sub record_channel {
     if ($incomingnewchannel && $enablerecording) {
 	$newchannel = $incomingnewchannel
 	  if ($currentrecording ne $incomingnewchannel);
+
 	return if ($recording);
+
 	print "-- starting recording of $newchannel\n";
 	$recording = 1;
-	threads->create(\&record_it);
+
+	# Ugh...
+	return if ($running);
+	print "creating a new one\n";
+	my $thread = threads->create(\&record_it);
+	print "created: $thread\n";
     } else {
 	print "-- stopping recording\n";
 	$recording = 0;
+    }
+
+    # check if we have any threads that have shut down and need cleanup
+    my @threads = threads->list(threads::joinable);
+    foreach my $thread (@threads) {
+	if (!$thread->is_running()) {
+	    print "shutting down $thread\n";
+	    $thread->join(); # ignore the output
+	}
+	if ($thread->is_running()) {
+	    print "running: $thread\n";
+	}
+    }
+
+    @threads = threads->list(threads::all);
+    foreach my $thread (@threads) {
+	print "thread still known: $thread\n";
     }
 }
 
