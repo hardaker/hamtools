@@ -28,6 +28,7 @@ my $mainpanel;
 my $subpanel;
 my $grid;
 my $scanenabled = 1;
+my $defrows = 8;
 
 sub set_button_text {
     my ($channel, $format) = @_;
@@ -330,6 +331,14 @@ sub OnGrid {
     $subpanel->SetSizerAndFit($grid);
 }
 
+sub OnCols {
+    my $count = shift;
+    $grid->Clear(1);
+    $grid = new Wx::FlexGridSizer(int(($#main::toscan)/$count + 1),1);
+    load_buttons();
+    $subpanel->SetSizerAndFit($grid);
+}
+
 sub OnGroup {
     my ($group, $append) = @_;
     $group = $main::currentgroupconfig . "," . $group if ($append);
@@ -363,6 +372,19 @@ sub OnChangeChannel {
     change_channel($channel);
 }
 
+sub OnPlayAll {
+    if ($main::loadedmodules{'Recorder'}) {
+	$main::loadedmodules{'Recorder'}->play_everything();
+    }
+}
+
+sub OnToggleRecording {
+    if ($main::loadedmodules{'Recorder'}) {
+	$CQ::Recorder::enablerecording = ! $CQ::Recorder::enablerecording;
+	print "toggled: $CQ::Recorder::enablerecording\n";
+    }
+}
+
 sub new {
    my $class = shift;
    my $this = $class->SUPER::new( undef, -1, "CQ: Scanner", [-1,-1], [-1,-1]);
@@ -375,13 +397,15 @@ sub new {
    #
 
    $subpanel = Wx::Panel->new($this, -1);
-   $grid = new Wx::FlexGridSizer(1,int(($#main::toscan)/2 + 1));
+   $grid = new Wx::FlexGridSizer(1,int(($#main::toscan)/$defrows + 1));
 #   $grid = new Wx::BoxSizer(wxHORIZONTAL);
 
    #
    # MENU setup
    #
-   my($MENU_QUIT, $MENU_GRID, $MENU_USAGE, $MENU_TUNER) = (3000..3999);
+   my($MENU_QUIT, $MENU_GRID, $MENU_USAGE, $MENU_TUNER, $MENU_PLAYALL,
+      $MENU_TOGGLERECORD)
+     = (3000..3999);
    my($mfile) = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mfile->Append($MENU_QUIT, "&Quit\tCtrl-Q", "Quit this program");
 #   $mfile->AppendSeparator();
@@ -392,6 +416,8 @@ sub new {
    EVT_MENU($this, $MENU_QUIT, \&OnQuit);
    EVT_MENU($this, $MENU_USAGE, \&OnScanPlot);
    EVT_MENU($this, $MENU_TUNER, \&OnTuner);
+   EVT_MENU($this, $MENU_PLAYALL, \&OnPlayAll);
+   EVT_MENU($this, $MENU_TOGGLERECORD, \&OnToggleRecording);
 
    my $scannermenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($scannermenu, "&Scanner");
@@ -401,6 +427,10 @@ sub new {
    $scannermenu->Append($MENU_TUNER, "&Show Tuner Window\tCtrl-T",
 			"Show the tuner window");
    $scannermenu->AppendSeparator;
+   $scannermenu->Append($MENU_PLAYALL, "&Play Recording",
+			"Play the recordings");
+   $scannermenu->Append($MENU_TOGGLERECORD, "&Toggle Recording",
+			"Toggle recording on or off");
 
    my $configmenu = Wx::Menu->new(undef, wxMENU_TEAROFF);
    $mbar->Append($configmenu, "&Config");
@@ -429,6 +459,15 @@ sub new {
        $gridid++;
    }
    $configmenu->AppendSubMenu($mgrid, "&No. Button Rows");
+
+   my $gridid = 4250;
+   my ($mgrid) = Wx::Menu->new(undef, wxMENU_TEAROFF);
+   foreach my $colcount (1..15) {
+       $mgrid->Append($gridid, "$colcount", "");
+       EVT_MENU($this, $gridid, sub {OnCols("$colcount");});
+       $gridid++;
+   }
+   $configmenu->AppendSubMenu($mgrid, "&No. Button Cols");
 
    my $maxcountid = 4300;
    my ($mmaxcount) = Wx::Menu->new(undef, wxMENU_TEAROFF);
