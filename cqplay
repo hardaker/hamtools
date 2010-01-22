@@ -27,7 +27,7 @@ my $wstream = $wdevice->open_write_stream( {
 					 );
 $| = 1;
 
-my $worthylimit = .005;
+my $worthylimit = .002;
 
 sub max {
     return $_[0] if ($_[0] > $_[1]);
@@ -40,6 +40,7 @@ foreach my $file (@ARGV) {
     die "couldn't open $file\n" if (!$fh);
     my $buffer;
     print "$file: ";
+  top:
     while ($fh->read($buffer, $buffsize)) {
 	my @vals = unpack "f*", $buffer;
 #	printf("vals ($#vals): %f %f %f %f\n", @vals);
@@ -47,7 +48,7 @@ foreach my $file (@ARGV) {
 	    if ($vals[$i] >= $worthylimit || $vals <= -$worthylimit) {
 		print "+";
 		$wstream->write($buffer);
-		last;
+		next top;
 	    }
 	}
 	print "-";

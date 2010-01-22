@@ -88,6 +88,8 @@ my $stream = $device->open_read_stream( {
 	    next;
 	}
 	# print "reading: $recording -- $enablerecording\n";
+	my $frames = $stream->read_available();
+	print "frames ready: $frames\n";
 	my $ok = $stream->read($buffer,$number_of_frames);
 
 	# print "after reading:\n";
